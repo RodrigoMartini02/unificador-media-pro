@@ -1,0 +1,336 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Unificador de Mídia Pro</title>
+    <link rel="stylesheet" href="styles.css">
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🎬</text></svg>">
+    <meta name="description" content="Unifique vídeos e áudios em um só arquivo facilmente">
+    <meta name="author" content="Rodrigo">
+</head>
+<body>
+    <div class="app-container">
+        <!-- Header -->
+        <header class="app-header">
+            <div class="header-content">
+                <h1>🎬 Unificador de Mídia Pro</h1>
+                <p>Unifique vídeos e áudios em um só arquivo facilmente</p>
+                <div class="header-status">
+                    <div class="connection-status connected" id="connectionStatus">🟢 Online</div>
+                    <div class="version-info">v2.0</div>
+                </div>
+            </div>
+        </header>
+
+        <main class="main-content">
+            <!-- Upload Section -->
+            <section class="upload-section">
+                <div class="section-card">
+                    <div class="section-header">
+                        <h2>📤 Adicionar Arquivos</h2>
+                    </div>
+                    
+                    <div class="drop-zone" id="dropZone">
+                        <div class="drop-content">
+                            <div class="upload-icon">📁</div>
+                            <h3>Arraste seus arquivos aqui</h3>
+                            <p>ou clique para selecionar</p>
+                            <div class="supported-formats">
+                                <div class="format-group">
+                                    <strong>🎬 Vídeos:</strong>
+                                    <span>MP4, AVI, MOV, MKV, WEBM, FLV</span>
+                                </div>
+                                <div class="format-group">
+                                    <strong>🎵 Áudios:</strong>
+                                    <span>MP3, WAV, FLAC, M4A, AAC, OGG</span>
+                                </div>
+                            </div>
+                            <div class="upload-limits">
+                                <small>Máximo: 50 arquivos • 5GB por arquivo</small>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <input type="file" id="fileInput" multiple accept="video/*,audio/*,.mp4,.avi,.mov,.mkv,.webm,.flv,.mp3,.wav,.flac,.m4a,.aac,.ogg,.wma" hidden>
+                    
+                    <div id="uploadProgress" class="upload-progress" style="display: none;">
+                        <div class="progress-info">
+                            <span class="progress-text">Enviando arquivos...</span>
+                            <div class="spinner"></div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Statistics Section -->
+            <section class="stats-section" id="statsSection" style="display: none;">
+                <div class="section-card">
+                    <div class="section-header">
+                        <h2>📊 Estatísticas</h2>
+                        <button id="clearBtn" class="btn btn-secondary btn-small">🗑️ Limpar Tudo</button>
+                    </div>
+                    
+                    <div class="stats-grid">
+                        <div class="stat-item">
+                            <div class="stat-icon">📄</div>
+                            <div class="stat-info">
+                                <span class="stat-label">Arquivos</span>
+                                <span class="stat-value" id="fileCount">0</span>
+                            </div>
+                        </div>
+                        <div class="stat-item">
+                            <div class="stat-icon">💾</div>
+                            <div class="stat-info">
+                                <span class="stat-label">Tamanho Total</span>
+                                <span class="stat-value" id="totalSize">0 B</span>
+                            </div>
+                        </div>
+                        <div class="stat-item">
+                            <div class="stat-icon">⏱️</div>
+                            <div class="stat-info">
+                                <span class="stat-label">Duração Total</span>
+                                <span class="stat-value" id="totalDuration">00:00</span>
+                            </div>
+                        </div>
+                        <div class="stat-item">
+                            <div class="stat-icon">🎯</div>
+                            <div class="stat-info">
+                                <span class="stat-label">Tipo</span>
+                                <span class="stat-value type-mixed" id="typeIndicator">Misto</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Files List -->
+            <section class="files-section" id="filesSection" style="display: none;">
+                <div class="section-card">
+                    <div class="section-header">
+                        <h2>📋 Lista de Arquivos</h2>
+                        <div class="list-controls">
+                            <small class="help-text">💡 Use as setas para reordenar</small>
+                        </div>
+                    </div>
+                    
+                    <div id="filesList" class="files-list">
+                        <p class="no-files">Nenhum arquivo carregado</p>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Configuration Section -->
+            <section id="configSection" class="config-section" style="display: none;">
+                <div class="section-card">
+                    <div class="section-header">
+                        <h2>⚙️ Configurações de Saída</h2>
+                    </div>
+                    
+                    <div class="config-grid">
+                        <div class="form-group">
+                            <label for="outputName">
+                                <span class="label-icon">📝</span>
+                                Nome do arquivo:
+                            </label>
+                            <input type="text" id="outputName" value="media_unificado" 
+                                   placeholder="Digite o nome do arquivo final" maxlength="50">
+                            <small class="field-help">Será salvo na pasta "Mídia Unificada" na área de trabalho</small>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="outputFormat">
+                                <span class="label-icon">🎯</span>
+                                Formato de saída:
+                            </label>
+                            <select id="outputFormat">
+                                <option value="mp4">MP4 (Recomendado)</option>
+                                <option value="mkv">MKV (Alta Qualidade)</option>
+                                <option value="avi">AVI (Compatibilidade)</option>
+                                <option value="mp3">MP3 (Apenas Áudio)</option>
+                            </select>
+                            <small class="field-help">MP4 oferece melhor compatibilidade</small>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="quality">
+                                <span class="label-icon">🎨</span>
+                                Qualidade:
+                            </label>
+                            <select id="quality">
+                                <option value="copy">Manter Original (Mais Rápido)</option>
+                                <option value="high" selected>Alta Qualidade</option>
+                                <option value="medium">Qualidade Média</option>
+                                <option value="low">Qualidade Baixa (Menor Arquivo)</option>
+                            </select>
+                            <small class="field-help">Manter original é mais rápido mas pode ter incompatibilidades</small>
+                        </div>
+
+                        <div class="form-group performance-modes">
+                            <label class="section-label">
+                                <span class="label-icon">⚡</span>
+                                Modo de Performance:
+                            </label>
+                            
+                            <div class="performance-options">
+                                <label class="checkbox-label">
+                                    <input type="checkbox" id="turboMode">
+                                    <span class="checkmark"></span>
+                                    <div class="option-info">
+                                        <span class="option-title">🚀 Modo Turbo</span>
+                                        <small>Usa todos os núcleos do processador</small>
+                                    </div>
+                                </label>
+
+                                <label class="checkbox-label">
+                                    <input type="checkbox" id="ecoMode">
+                                    <span class="checkmark"></span>
+                                    <div class="option-info">
+                                        <span class="option-title">🌱 Modo Eco</span>
+                                        <small>Usa menos recursos do sistema</small>
+                                    </div>
+                                </label>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="action-section">
+                        <div class="action-buttons">
+                            <button id="processBtn" class="btn btn-primary btn-large" disabled>
+                                <span class="btn-icon">🚀</span>
+                                <span class="btn-text">Adicione pelo menos 2 arquivos</span>
+                            </button>
+                        </div>
+                        
+                        <div class="keyboard-shortcuts">
+                            <small>
+                                <strong>Atalhos:</strong> 
+                                Ctrl+O (Abrir) • Ctrl+Enter (Processar) • Ctrl+Del (Limpar)
+                            </small>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Processing Section -->
+            <section id="processSection" class="process-section" style="display: none;">
+                <div class="section-card">
+                    <div class="section-header">
+                        <h2>🔄 Processamento em Andamento</h2>
+                    </div>
+                    
+                    <div class="process-container">
+                        <div class="process-visual">
+                            <div class="process-icon">
+                                <div class="rotating-icon">⚙️</div>
+                            </div>
+                            
+                            <div class="progress-info">
+                                <div class="progress-text">
+                                    <span id="statusText" class="status-text">Iniciando processamento...</span>
+                                    <span id="speedText" class="speed-text"></span>
+                                </div>
+                                
+                                <div class="progress-bar-container">
+                                    <div id="progressBar" class="progress-bar"></div>
+                                    <div class="progress-percentage" id="progressPercentage">0%</div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="process-tips">
+                            <h4>💡 Dicas durante o processamento:</h4>
+                            <ul>
+                                <li>Não feche a aplicação durante o processo</li>
+                                <li>O tempo varia conforme tamanho e qualidade</li>
+                                <li>Arquivos maiores demoram mais para processar</li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Result Section -->
+            <section id="resultSection" class="result-section" style="display: none;">
+                <div class="section-card">
+                    <div class="section-header">
+                        <h2>🎉 Resultado</h2>
+                    </div>
+                    
+                    <div id="resultInfo" class="result-container">
+                        <!-- Conteúdo será preenchido via JavaScript -->
+                    </div>
+                    
+                    <div class="result-actions">
+                        <button id="downloadBtn" class="btn btn-success btn-large">
+                            <span class="btn-icon">💾</span>
+                            <span class="btn-text">Download do Arquivo</span>
+                        </button>
+                        <button id="newProcessBtn" class="btn btn-outline">
+                            <span class="btn-icon">🔄</span>
+                            <span class="btn-text">Nova Unificação</span>
+                        </button>
+                    </div>
+                </div>
+            </section>
+        </main>
+
+        <!-- Footer -->
+        <footer class="app-footer">
+            <div class="footer-content">
+                <p>© 2025 Unificador de Mídia Pro - Criado por Rodrigo</p>
+                <div class="footer-links">
+                    <button onclick="app.getSystemInfo()" class="link-btn">ℹ️ Info do Sistema</button>
+                    <button onclick="app.reloadApp()" class="link-btn">🔄 Recarregar</button>
+                </div>
+            </div>
+        </footer>
+    </div>
+
+    <!-- Loading Overlay (opcional para futuras melhorias) -->
+    <div id="loadingOverlay" class="loading-overlay" style="display: none;">
+        <div class="loading-content">
+            <div class="loading-spinner"></div>
+            <p>Carregando...</p>
+        </div>
+    </div>
+
+    <!-- Scripts -->
+    <script src="app.js"></script>
+    
+    <!-- Analytics ou tracking scripts podem ir aqui -->
+    <script>
+        // Log de performance
+        window.addEventListener('load', () => {
+            const loadTime = performance.now();
+            console.log(`⚡ Página carregada em ${loadTime.toFixed(2)}ms`);
+        });
+
+        // Detectar se está offline
+        window.addEventListener('online', () => {
+            if (window.app) {
+                window.app.showToast('Conexão restaurada', 'success');
+            }
+        });
+
+        window.addEventListener('offline', () => {
+            if (window.app) {
+                window.app.showToast('Sem conexão com a internet', 'warning');
+            }
+        });
+
+        // Prevenir zoom acidental
+        document.addEventListener('gesturestart', function (e) {
+            e.preventDefault();
+        });
+
+        document.addEventListener('gesturechange', function (e) {
+            e.preventDefault();
+        });
+
+        document.addEventListener('gestureend', function (e) {
+            e.preventDefault();
+        });
+    </script>
+</body>
+</html>
