@@ -1,19 +1,16 @@
-// ===============================================
-// UNIFICADOR DE MÍDIA PRO - VERSÃO WEB
-// Frontend JavaScript - Sem dependências Electron
-// ===============================================
-
 class MediaUnifierApp {
     constructor() {
         this.files = [];
         this.isProcessing = false;
-        this.serverUrl = window.location.origin; // URL base do servidor
-        this.maxFileSize = 5 * 1024 * 1024 * 1024; // 5GB
+        this.serverUrl = window.location.origin;
+        this.maxFileSize = 5 * 1024 * 1024 * 1024;
         this.maxFiles = 50;
         this.supportedFormats = {
             video: ['mp4', 'avi', 'mov', 'mkv', 'webm', 'flv'],
             audio: ['mp3', 'wav', 'flac', 'm4a', 'aac', 'ogg', 'wma']
         };
+        this.ws = null;
+        this.currentProcessId = null;
         
         this.init();
     }
@@ -23,33 +20,30 @@ class MediaUnifierApp {
         this.setupElements();
         this.setupEventListeners();
         this.setupKeyboardShortcuts();
+        this.setupWebSocket();
         this.updateConnectionStatus();
         this.showToast('Aplicação carregada com sucesso!', 'success');
     }
 
     setupElements() {
-        // Elementos principais
         this.dropZone = document.getElementById('dropZone');
         this.fileInput = document.getElementById('fileInput');
         this.filesList = document.getElementById('filesList');
         this.processBtn = document.getElementById('processBtn');
         this.clearBtn = document.getElementById('clearBtn');
         
-        // Seções
         this.statsSection = document.getElementById('statsSection');
         this.filesSection = document.getElementById('filesSection');
         this.configSection = document.getElementById('configSection');
         this.processSection = document.getElementById('processSection');
         this.resultSection = document.getElementById('resultSection');
         
-        // Configurações
         this.outputName = document.getElementById('outputName');
         this.outputFormat = document.getElementById('outputFormat');
         this.quality = document.getElementById('quality');
         this.turboMode = document.getElementById('turboMode');
         this.ecoMode = document.getElementById('ecoMode');
         
-        // Status e progresso
         this.connectionStatus = document.getElementById('connectionStatus');
         this.progressBar = document.getElementById('progressBar');
         this.progressPercentage = document.getElementById('progressPercentage');
@@ -58,24 +52,19 @@ class MediaUnifierApp {
     }
 
     setupEventListeners() {
-        // Upload via drag & drop
         this.dropZone.addEventListener('dragover', this.handleDragOver.bind(this));
         this.dropZone.addEventListener('dragleave', this.handleDragLeave.bind(this));
         this.dropZone.addEventListener('drop', this.handleDrop.bind(this));
         this.dropZone.addEventListener('click', () => this.fileInput.click());
         
-        // Upload via input
         this.fileInput.addEventListener('change', this.handleFileSelect.bind(this));
         
-        // Botões
         this.processBtn.addEventListener('click', this.startProcessing.bind(this));
         this.clearBtn.addEventListener('click', this.clearAllFiles.bind(this));
         
-        // Configurações
         this.turboMode.addEventListener('change', this.handleModeChange.bind(this));
         this.ecoMode.addEventListener('change', this.handleModeChange.bind(this));
         
-        // Validação de nome
         this.outputName.addEventListener('input', this.validateOutputName.bind(this));
     }
 
@@ -102,9 +91,64 @@ class MediaUnifierApp {
         });
     }
 
-    // ===============================================
-    // UPLOAD DE ARQUIVOS (WEB VERSION)
-    // ===============================================
+    setupWebSocket() {
+        const wsProtocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+        const wsUrl = `${wsProtocol}//${window.location.host}`;
+        
+        try {
+            this.ws = new WebSocket(wsUrl);
+            
+            this.ws.onopen = () => {
+                console.log('🔌 WebSocket conectado');
+                this.updateConnectionStatus();
+            };
+            
+            this.ws.onmessage = (event) => {
+                try {
+                    const data = JSON.parse(event.data);
+                    this.handleWebSocketMessage(data);
+                } catch (error) {
+                    console.error('❌ Erro ao processar mensagem WebSocket:', error);
+                }
+            };
+            
+            this.ws.onclose = () => {
+                console.log('🔌 WebSocket desconectado');
+                this.updateConnectionStatus();
+                setTimeout(() => this.setupWebSocket(), 5000);
+            };
+            
+            this.ws.onerror = (error) => {
+                console.error('❌ Erro WebSocket:', error);
+            };
+        } catch (error) {
+            console.warn('⚠️ WebSocket não disponível, usando polling');
+        }
+    }
+
+    handleWebSocketMessage(data) {
+        if (data.type === 'processUpdate' && data.data.id === this.currentProcessId) {
+            const processInfo = data.data;
+            
+            this.updateProgress(processInfo.progress || 0, processInfo.status || 'Processando...');
+            
+            if (processInfo.speed) {
+                this.updateSpeed(processInfo.speed);
+            }
+            
+            if (processInfo.status === 'concluído') {
+                this.handleProcessingComplete({
+                    filename: processInfo.fileName,
+                    downloadUrl: `${this.serverUrl}/download/${processInfo.id}`,
+                    format: this.outputFormat.value,
+                    processId: processInfo.id
+                });
+            } else if (processInfo.status === 'erro') {
+                this.showToast('Erro no processamento: ' + processInfo.error, 'error');
+                this.resetToInitialState();
+            }
+        }
+    }
 
     handleDragOver(e) {
         e.preventDefault();
@@ -127,7 +171,6 @@ class MediaUnifierApp {
     handleFileSelect(e) {
         const files = Array.from(e.target.files);
         this.addFiles(files);
-        // Limpar input para permitir mesmo arquivo novamente
         e.target.value = '';
     }
 
@@ -138,7 +181,6 @@ class MediaUnifierApp {
         for (const file of fileList) {
             const validation = this.validateFile(file);
             if (validation.valid) {
-                // Adicionar informações extras ao arquivo
                 const fileWithInfo = {
                     file: file,
                     id: this.generateId(),
@@ -146,12 +188,11 @@ class MediaUnifierApp {
                     size: file.size,
                     type: file.type,
                     extension: this.getFileExtension(file.name),
-                    duration: null, // Será preenchido depois
+                    duration: null,
                     isVideo: this.isVideoFile(file.name),
                     isAudio: this.isAudioFile(file.name)
                 };
                 
-                // Tentar obter duração
                 try {
                     fileWithInfo.duration = await this.getMediaDuration(file);
                 } catch (error) {
@@ -165,21 +206,17 @@ class MediaUnifierApp {
             }
         }
 
-        // Verificar limites
         if (this.files.length + validFiles.length > this.maxFiles) {
             this.showToast(`Máximo de ${this.maxFiles} arquivos permitido`, 'error');
             return;
         }
 
-        // Adicionar arquivos válidos
         this.files.push(...validFiles);
         
-        // Mostrar erros se houver
         if (errors.length > 0) {
             this.showToast(`Alguns arquivos foram rejeitados:\n${errors.join('\n')}`, 'warning');
         }
 
-        // Atualizar interface
         this.updateUI();
         
         if (validFiles.length > 0) {
@@ -188,7 +225,6 @@ class MediaUnifierApp {
     }
 
     validateFile(file) {
-        // Verificar tamanho
         if (file.size > this.maxFileSize) {
             return {
                 valid: false,
@@ -196,7 +232,6 @@ class MediaUnifierApp {
             };
         }
 
-        // Verificar formato
         const extension = this.getFileExtension(file.name).toLowerCase();
         const allFormats = [...this.supportedFormats.video, ...this.supportedFormats.audio];
         
@@ -233,10 +268,6 @@ class MediaUnifierApp {
         });
     }
 
-    // ===============================================
-    // PROCESSAMENTO (WEB VERSION)
-    // ===============================================
-
     async startProcessing() {
         if (this.files.length < 2) {
             this.showToast('Adicione pelo menos 2 arquivos para unificar', 'warning');
@@ -247,7 +278,6 @@ class MediaUnifierApp {
         this.showProcessingSection();
 
         try {
-            // PASSO 1: Upload real dos arquivos
             this.updateProgress(10, 'Enviando arquivos...');
             const uploadResponse = await this.uploadFilesReal();
             
@@ -257,7 +287,6 @@ class MediaUnifierApp {
 
             this.showToast(`${uploadResponse.files.length} arquivos enviados`, 'success');
 
-            // PASSO 2: Processar unificação real
             this.updateProgress(30, 'Iniciando processamento...');
             const processResponse = await this.processFilesReal(uploadResponse.files);
             
@@ -265,11 +294,13 @@ class MediaUnifierApp {
                 throw new Error(processResponse.error);
             }
 
+            this.currentProcessId = processResponse.processId;
             this.showToast('Processamento iniciado', 'info');
 
-            // PASSO 3: Aguardar conclusão e mostrar resultado
-            this.updateProgress(50, 'Processando com FFmpeg...');
-            await this.waitForCompletion(processResponse.processId);
+            if (!this.ws || this.ws.readyState !== WebSocket.OPEN) {
+                this.updateProgress(50, 'Processando com FFmpeg...');
+                await this.waitForCompletion(processResponse.processId);
+            }
 
         } catch (error) {
             console.error('❌ Erro no processamento:', error);
@@ -281,7 +312,6 @@ class MediaUnifierApp {
     async uploadFilesReal() {
         const formData = new FormData();
         
-        // Adicionar arquivos reais
         this.files.forEach((fileInfo) => {
             formData.append('files', fileInfo.file);
         });
@@ -327,23 +357,19 @@ class MediaUnifierApp {
     }
 
     async waitForCompletion(processId) {
-        // Aguardar processamento por polling
-        const maxWait = 300000; // 5 minutos
+        const maxWait = 300000;
         const startTime = Date.now();
         
         while (Date.now() - startTime < maxWait) {
-            // Simular progresso incremental
             const elapsed = Date.now() - startTime;
             const progress = Math.min(50 + (elapsed / maxWait) * 45, 95);
             this.updateProgress(progress, 'Processando com FFmpeg...');
             
-            // Tentar acessar resultado
             try {
                 const downloadUrl = `${this.serverUrl}/download/${processId}`;
                 const testResponse = await fetch(downloadUrl, { method: 'HEAD' });
                 
                 if (testResponse.ok) {
-                    // Arquivo pronto!
                     this.updateProgress(100, 'Processamento concluído!');
                     
                     this.handleProcessingComplete({
@@ -355,19 +381,14 @@ class MediaUnifierApp {
                     return;
                 }
             } catch (error) {
-                // Ainda não está pronto, continuar aguardando
+                // Continue waiting
             }
             
-            // Aguardar 2 segundos antes de verificar novamente
             await new Promise(resolve => setTimeout(resolve, 2000));
         }
         
         throw new Error('Timeout: Processamento demorou mais que 5 minutos');
     }
-
-    // Métodos de upload simplificados removidos - usando fluxo direto
-
-    // Remover métodos WebSocket complexos - usando polling simples
 
     updateProgress(progress, status) {
         this.progressBar.style.width = `${progress}%`;
@@ -381,13 +402,10 @@ class MediaUnifierApp {
 
     handleProcessingComplete(data) {
         this.isProcessing = false;
+        this.currentProcessId = null;
         this.showResultSection(data);
         this.showToast('Processamento concluído com sucesso!', 'success');
     }
-
-    // ===============================================
-    // INTERFACE E NAVEGAÇÃO
-    // ===============================================
 
     showProcessingSection() {
         this.hideAllSections();
@@ -422,13 +440,11 @@ class MediaUnifierApp {
             </div>
         `;
 
-        // Configurar botão de download
         const downloadBtn = document.getElementById('downloadBtn');
         const newProcessBtn = document.getElementById('newProcessBtn');
         
         downloadBtn.onclick = () => {
             if (result.downloadUrl && result.downloadUrl !== '#download-teste') {
-                // Download real do arquivo
                 const link = document.createElement('a');
                 link.href = result.downloadUrl;
                 link.download = result.filename || 'arquivo_unificado.mp4';
@@ -467,7 +483,6 @@ class MediaUnifierApp {
         document.getElementById('totalSize').textContent = this.formatFileSize(totalSize);
         document.getElementById('totalDuration').textContent = this.formatDuration(totalDuration);
         
-        // Tipo predominante
         const videoCount = this.files.filter(f => f.isVideo).length;
         const audioCount = this.files.filter(f => f.isAudio).length;
         
@@ -538,10 +553,6 @@ class MediaUnifierApp {
         this.configSection.style.display = hasFiles ? 'block' : 'none';
     }
 
-    // ===============================================
-    // GERENCIAMENTO DE ARQUIVOS
-    // ===============================================
-
     removeFile(index) {
         if (index >= 0 && index < this.files.length) {
             const fileName = this.files[index].name;
@@ -578,39 +589,14 @@ class MediaUnifierApp {
     resetToInitialState() {
         this.files = [];
         this.isProcessing = false;
+        this.currentProcessId = null;
         this.hideAllSections();
         this.updateUI();
         this.outputName.value = 'media_unificado';
         this.showToast('Pronto para nova unificação', 'info');
     }
 
-    // ===============================================
-    // DOWNLOAD E ARQUIVOS
-    // ===============================================
-
-    async downloadFile(downloadUrl) {
-        try {
-            // Criar link de download
-            const link = document.createElement('a');
-            link.href = downloadUrl;
-            link.download = ''; // Nome será definido pelo servidor
-            document.body.appendChild(link);
-            link.click();
-            document.body.removeChild(link);
-            
-            this.showToast('Download iniciado!', 'success');
-        } catch (error) {
-            console.error('❌ Erro no download:', error);
-            this.showToast('Erro ao baixar arquivo: ' + error.message, 'error');
-        }
-    }
-
-    // ===============================================
-    // CONFIGURAÇÕES E VALIDAÇÕES
-    // ===============================================
-
     handleModeChange() {
-        // Eco e Turbo são mutuamente exclusivos
         if (this.turboMode.checked) {
             this.ecoMode.checked = false;
         } else if (this.ecoMode.checked) {
@@ -620,7 +606,6 @@ class MediaUnifierApp {
 
     validateOutputName() {
         const value = this.outputName.value;
-        // Remover caracteres inválidos para nome de arquivo
         const cleaned = value.replace(/[<>:"/\\|?*]/g, '');
         if (cleaned !== value) {
             this.outputName.value = cleaned;
@@ -628,11 +613,13 @@ class MediaUnifierApp {
     }
 
     updateConnectionStatus() {
-        // Verificar conexão com servidor
+        const wsStatus = this.ws && this.ws.readyState === WebSocket.OPEN;
+        
         fetch(`${this.serverUrl}/health`)
             .then(response => {
                 if (response.ok) {
-                    this.connectionStatus.textContent = '🟢 Online';
+                    const status = wsStatus ? '🟢 Online (WebSocket)' : '🟡 Online (HTTP)';
+                    this.connectionStatus.textContent = status;
                     this.connectionStatus.className = 'connection-status connected';
                 } else {
                     throw new Error('Servidor não responde');
@@ -643,10 +630,6 @@ class MediaUnifierApp {
                 this.connectionStatus.className = 'connection-status disconnected';
             });
     }
-
-    // ===============================================
-    // UTILITÁRIOS
-    // ===============================================
 
     getFileExtension(filename) {
         return filename.split('.').pop() || '';
@@ -687,7 +670,6 @@ class MediaUnifierApp {
     }
 
     showToast(message, type = 'info') {
-        // Criar toast notification
         const toast = document.createElement('div');
         toast.className = `toast toast-${type}`;
         toast.innerHTML = `
@@ -698,10 +680,8 @@ class MediaUnifierApp {
             <button class="toast-close" onclick="this.parentElement.remove()">×</button>
         `;
 
-        // Adicionar ao DOM
         document.body.appendChild(toast);
 
-        // Auto-remover após 5 segundos
         setTimeout(() => {
             if (toast.parentElement) {
                 toast.remove();
@@ -711,10 +691,6 @@ class MediaUnifierApp {
         console.log(`${type.toUpperCase()}: ${message}`);
     }
 
-    // ===============================================
-    // FUNÇÕES PÚBLICAS (para debug)
-    // ===============================================
-
     getSystemInfo() {
         const info = {
             userAgent: navigator.userAgent,
@@ -723,7 +699,8 @@ class MediaUnifierApp {
             onLine: navigator.onLine,
             filesLoaded: this.files.length,
             serverUrl: this.serverUrl,
-            supportedFormats: this.supportedFormats
+            supportedFormats: this.supportedFormats,
+            webSocketConnected: this.ws && this.ws.readyState === WebSocket.OPEN
         };
         
         console.table(info);
@@ -738,18 +715,11 @@ class MediaUnifierApp {
     }
 }
 
-// ===============================================
-// INICIALIZAÇÃO
-// ===============================================
-
-// Aguardar DOM carregar
 document.addEventListener('DOMContentLoaded', () => {
     console.log('📱 DOM carregado - iniciando aplicação web');
     
-    // Criar instância global
     window.app = new MediaUnifierApp();
     
-    // Verificar suporte a recursos necessários
     if (!window.FormData) {
         alert('Seu navegador não suporta upload de arquivos. Use um navegador mais recente.');
         return;
@@ -763,7 +733,6 @@ document.addEventListener('DOMContentLoaded', () => {
     console.log('✅ Unificador de Mídia Pro carregado com sucesso!');
 });
 
-// Tratamento de erros globais
 window.addEventListener('error', (e) => {
     console.error('❌ Erro global:', e.error);
     if (window.app) {
@@ -778,7 +747,6 @@ window.addEventListener('unhandledrejection', (e) => {
     }
 });
 
-// Detectar mudanças de conexão
 window.addEventListener('online', () => {
     if (window.app) {
         window.app.showToast('Conexão restaurada', 'success');
@@ -793,7 +761,6 @@ window.addEventListener('offline', () => {
     }
 });
 
-// Log de performance
 window.addEventListener('load', () => {
     const loadTime = performance.now();
     console.log(`⚡ Aplicação carregada em ${loadTime.toFixed(2)}ms`);
