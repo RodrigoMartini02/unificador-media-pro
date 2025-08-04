@@ -14,7 +14,6 @@ class MediaServerWeb {
         this.server = null;
         this.wss = null;
         this.port = process.env.PORT || 3000;
-        this.wsPort = process.env.WS_PORT || (this.port + 1);
         
         // Usar diretórios temporários do sistema
         this.tempDir = path.join(os.tmpdir(), 'media-unifier-web');
@@ -92,28 +91,18 @@ class MediaServerWeb {
     }
 
     setupMiddleware() {
-        // CORS para web
-        this.app.use(cors({
-            origin: process.env.NODE_ENV === 'production' ? false : true,
-            credentials: true
-        }));
-        
+        this.app.use(cors());
         this.app.use(express.json({ limit: '100mb' }));
         this.app.use(express.urlencoded({ extended: true, limit: '100mb' }));
-        
-        // Servir arquivos estáticos
         this.app.use(express.static(path.join(__dirname, 'public')));
         
-        // Log de requisições
         this.app.use((req, res, next) => {
             console.log(`${new Date().toISOString()} - ${req.method} ${req.path}`);
             next();
         });
         
-        // Trust proxy para Heroku/Vercel
         this.app.set('trust proxy', 1);
         
-        // Configurar multer
         this.upload = multer({
             storage: multer.diskStorage({
                 destination: this.tempDir,
@@ -125,8 +114,8 @@ class MediaServerWeb {
                 }
             }),
             limits: { 
-                fileSize: 2 * 1024 * 1024 * 1024, // 2GB para web
-                files: 20 // Limite menor para web
+                fileSize: 2 * 1024 * 1024 * 1024,
+                files: 20
             },
             fileFilter: (req, file, cb) => {
                 const validExts = /\.(mp4|avi|mov|mkv|webm|flv|mp3|wav|flac|m4a|aac|ogg|wma)$/i;
@@ -136,40 +125,25 @@ class MediaServerWeb {
     }
 
     setupRoutes() {
-        // Página principal
         this.app.get('/', (req, res) => {
             const indexPath = path.join(__dirname, 'public', 'index.html');
             if (fs.existsSync(indexPath)) {
                 res.sendFile(indexPath);
             } else {
-                res.send(`
-                    <h1>🎬 Unificador de Mídia Pro</h1>
-                    <p>Arquivo index.html não encontrado na pasta public/</p>
-                `);
+                res.send(`<h1>🎬 Unificador de Mídia Pro</h1><p>Arquivo index.html não encontrado na pasta public/</p>`);
             }
         });
 
-        // Health check para hosting
         this.app.get('/health', (req, res) => {
-            res.json({ 
-                status: 'ok', 
-                timestamp: new Date().toISOString(),
-                uptime: process.uptime()
-            });
+            res.json({ status: 'ok', timestamp: new Date().toISOString(), uptime: process.uptime() });
         });
 
-        // Upload de arquivos
         this.app.post('/upload', this.upload.array('files', 20), async (req, res) => {
             try {
                 if (!req.files?.length) {
-                    return res.status(400).json({ 
-                        success: false, 
-                        error: 'Nenhum arquivo enviado' 
-                    });
+                    return res.status(400).json({ success: false, error: 'Nenhum arquivo enviado' });
                 }
-
                 console.log(`📤 Upload web: ${req.files.length} arquivo(s)`);
-
                 const files = await Promise.all(req.files.map(async (file) => {
                     const fileInfo = {
                         id: uuidv4(),
@@ -179,25 +153,16 @@ class MediaServerWeb {
                         type: this.getMediaType(file.originalname),
                         uploadTime: Date.now()
                     };
-                    
-                    // Analisar metadados
                     try {
                         fileInfo.metadata = await this.analyzeMedia(file.path);
                         console.log(`✅ ${file.originalname}: ${fileInfo.metadata.duration}s`);
                     } catch (error) {
                         console.warn(`⚠️ Análise ${file.originalname}:`, error.message);
-                        fileInfo.metadata = { 
-                            duration: 0, 
-                            resolution: 'Erro na análise', 
-                            bitrate: 0 
-                        };
+                        fileInfo.metadata = { duration: 0, resolution: 'Erro na análise', bitrate: 0 };
                     }
-                    
                     this.uploadedFiles.set(fileInfo.id, fileInfo);
                     return fileInfo;
                 }));
-
-                // Auto-limpeza em 1 hora para web
                 setTimeout(() => {
                     files.forEach(file => {
                         if (fs.existsSync(file.path)) {
@@ -206,79 +171,41 @@ class MediaServerWeb {
                         }
                     });
                 }, 60 * 60 * 1000);
-
-                res.json({ 
-                    success: true, 
-                    files,
-                    message: `${files.length} arquivo(s) enviado(s)`
-                });
-
+                res.json({ success: true, files, message: `${files.length} arquivo(s) enviado(s)` });
             } catch (error) {
                 console.error('❌ Erro upload web:', error);
-                res.status(500).json({ 
-                    success: false, 
-                    error: error.message 
-                });
+                res.status(500).json({ success: false, error: error.message });
             }
         });
 
-        // Processar unificação
         this.app.post('/process', async (req, res) => {
             try {
                 const { fileIds, config } = req.body;
-                
                 if (!fileIds?.length || fileIds.length < 2) {
-                    return res.status(400).json({ 
-                        success: false,
-                        error: 'Selecione pelo menos 2 arquivos' 
-                    });
+                    return res.status(400).json({ success: false, error: 'Selecione pelo menos 2 arquivos' });
                 }
-
                 const processId = uuidv4();
                 console.log(`🚀 Processamento web: ${processId}`);
-                
-                // Iniciar em background
                 this.startUnification(processId, fileIds, config);
-                
-                res.json({ 
-                    success: true, 
-                    processId,
-                    message: 'Processamento iniciado'
-                });
-
+                res.json({ success: true, processId, message: 'Processamento iniciado' });
             } catch (error) {
                 console.error('❌ Erro processamento web:', error);
-                res.status(500).json({ 
-                    success: false, 
-                    error: error.message 
-                });
+                res.status(500).json({ success: false, error: error.message });
             }
         });
 
-        // Download do resultado
         this.app.get('/download/:processId', (req, res) => {
             try {
                 const processId = req.params.processId;
                 const process = this.processes.get(processId);
-                
                 if (!process?.outputPath || !fs.existsSync(process.outputPath)) {
-                    return res.status(404).json({ 
-                        success: false,
-                        error: 'Arquivo não encontrado' 
-                    });
+                    return res.status(404).json({ success: false, error: 'Arquivo não encontrado' });
                 }
-
                 console.log(`📥 Download web: ${process.fileName}`);
-                
-                // Headers para download
                 res.setHeader('Content-Disposition', `attachment; filename="${process.fileName}"`);
                 res.setHeader('Content-Type', 'application/octet-stream');
-                
-                // Stream do arquivo
                 const fileStream = fs.createReadStream(process.outputPath);
                 fileStream.pipe(res);
-                
-                // Limpar após download
                 fileStream.on('end', () => {
                     setTimeout(() => {
                         if (fs.existsSync(process.outputPath)) {
@@ -287,17 +214,12 @@ class MediaServerWeb {
                         }
                     }, 60000);
                 });
-
             } catch (error) {
                 console.error('❌ Erro download web:', error);
-                res.status(500).json({ 
-                    success: false,
-                    error: error.message 
-                });
+                res.status(500).json({ success: false, error: error.message });
             }
         });
 
-        // Status do sistema
         this.app.get('/status', (req, res) => {
             res.json({
                 status: 'online',
@@ -311,20 +233,13 @@ class MediaServerWeb {
             });
         });
 
-        // Rota para WebSocket info
-        this.app.get('/ws-info', (req, res) => {
-            res.json({
-                wsPort: this.wsPort,
-                wsUrl: `ws://${req.get('host').split(':')[0]}:${this.wsPort}`
-            });
-        });
+        // Rota de info do WebSocket removida pois não usa mais porta separada em prod
     }
 
     getMediaType(filename) {
         const ext = path.extname(filename).toLowerCase();
         const videoExts = ['.mp4', '.avi', '.mov', '.mkv', '.webm', '.flv', '.m4v'];
         const audioExts = ['.mp3', '.wav', '.flac', '.m4a', '.aac', '.ogg', '.wma'];
-        
         if (videoExts.includes(ext)) return 'video';
         if (audioExts.includes(ext)) return 'audio';
         return 'unknown';
@@ -333,20 +248,14 @@ class MediaServerWeb {
     async analyzeMedia(filePath) {
         return new Promise((resolve, reject) => {
             ffmpeg.ffprobe(filePath, (err, metadata) => {
-                if (err) {
-                    reject(new Error(`Análise falhou: ${err.message}`));
-                    return;
-                }
-
+                if (err) return reject(new Error(`Análise falhou: ${err.message}`));
                 try {
                     const videoStream = metadata.streams.find(s => s.codec_type === 'video');
                     const audioStream = metadata.streams.find(s => s.codec_type === 'audio');
-                    
                     const result = {
                         duration: parseFloat(metadata.format.duration) || 0,
                         bitrate: parseInt(metadata.format.bit_rate) || 0
                     };
-
                     if (videoStream) {
                         result.resolution = `${videoStream.width}x${videoStream.height}`;
                         result.codec = videoStream.codec_name;
@@ -357,7 +266,6 @@ class MediaServerWeb {
                         result.resolution = 'Desconhecido';
                         result.codec = 'unknown';
                     }
-                    
                     resolve(result);
                 } catch (parseError) {
                     reject(new Error(`Erro metadados: ${parseError.message}`));
@@ -368,84 +276,50 @@ class MediaServerWeb {
 
     async startUnification(processId, fileIds, config) {
         const processInfo = {
-            id: processId,
-            status: 'iniciando',
-            progress: 0,
+            id: processId, status: 'iniciando', progress: 0,
             startTime: Date.now(),
             fileName: `${config.outputName || 'media_unificado'}.${config.format || 'mp4'}`,
-            outputPath: null,
-            error: null
+            outputPath: null, error: null
         };
-
         this.processes.set(processId, processInfo);
         this.broadcast({ type: 'processUpdate', data: processInfo });
-
         try {
             const files = fileIds.map(id => this.uploadedFiles.get(id)).filter(Boolean);
-            
-            if (files.length < 2) {
-                throw new Error('Arquivos insuficientes');
-            }
-
+            if (files.length < 2) throw new Error('Arquivos insuficientes');
             console.log(`🎬 Processamento web: ${files.length} arquivo(s)`);
-
-            // Arquivo de saída
             const outputPath = path.join(this.outputDir, `${processId}_${processInfo.fileName}`);
             processInfo.outputPath = outputPath;
-
-            // Lista de concatenação
             const listPath = path.join(this.tempDir, `list_${processId}.txt`);
             const listContent = files.map(f => `file '${f.path.replace(/\\/g, '/')}'`).join('\n');
             fs.writeFileSync(listPath, listContent, 'utf8');
-
-            // Configurar FFmpeg para web (otimizado)
-            let command = ffmpeg()
-                .input(listPath)
-                .inputOptions(['-f', 'concat', '-safe', '0']);
-
-            // Configurações otimizadas para web
+            let command = ffmpeg().input(listPath).inputOptions(['-f', 'concat', '-safe', '0']);
             this.applyWebConfig(command, config, files);
-
             processInfo.status = 'processando';
             this.broadcast({ type: 'processUpdate', data: processInfo });
-
             command
-                .on('start', (commandLine) => {
-                    console.log(`🎬 FFmpeg web iniciado`);
-                })
+                .on('start', () => console.log(`🎬 FFmpeg web iniciado`))
                 .on('progress', (progress) => {
-                    const percent = Math.min(Math.max(progress.percent || 0, 0), 100);
-                    processInfo.progress = percent;
-                    processInfo.speed = progress.currentKbps ? 
-                        `${(progress.currentKbps / 1000).toFixed(2)} MB/s` : 'Calculando...';
-                    
+                    processInfo.progress = Math.min(Math.max(progress.percent || 0, 0), 100);
+                    processInfo.speed = progress.currentKbps ? `${(progress.currentKbps / 1000).toFixed(2)} MB/s` : 'Calculando...';
                     this.broadcast({ type: 'processUpdate', data: processInfo });
                 })
                 .on('end', () => {
                     processInfo.status = 'concluído';
                     processInfo.progress = 100;
                     processInfo.endTime = Date.now();
-                    
                     console.log(`✅ Processamento web concluído: ${processInfo.fileName}`);
                     this.broadcast({ type: 'processUpdate', data: processInfo });
-                    
-                    // Limpar arquivos de entrada
                     this.cleanup(files, listPath);
                 })
                 .on('error', (err) => {
                     processInfo.status = 'erro';
                     processInfo.error = err.message;
-                    
                     console.error(`❌ Erro FFmpeg web:`, err.message);
                     this.broadcast({ type: 'processUpdate', data: processInfo });
-                    
                     this.cleanup(files, listPath);
-                    if (fs.existsSync(outputPath)) {
-                        fs.unlinkSync(outputPath);
-                    }
+                    if (fs.existsSync(outputPath)) fs.unlinkSync(outputPath);
                 })
                 .save(outputPath);
-
         } catch (error) {
             console.error(`❌ Erro processamento web:`, error);
             processInfo.status = 'erro';
@@ -456,125 +330,80 @@ class MediaServerWeb {
 
     applyWebConfig(command, config, files) {
         const hasVideo = files.some(f => f.type === 'video');
-        
-        // Configurações otimizadas para web
         if (config.quality === 'copy') {
             command.outputOptions(['-c', 'copy']);
         } else if (hasVideo) {
-            // Configuração rápida para web
-            command
-                .videoCodec('libx264')
-                .audioCodec('aac')
-                .outputOptions([
-                    '-crf', '23',
-                    '-preset', 'fast',
-                    '-b:a', '192k',
-                    '-threads', '2',
-                    '-movflags', '+faststart'
-                ]);
+            command.videoCodec('libx264').audioCodec('aac').outputOptions(['-crf', '23', '-preset', 'fast', '-b:a', '192k', '-threads', '2', '-movflags', '+faststart']);
         } else {
-            // Apenas áudio
-            command
-                .audioCodec('libmp3lame')
-                .outputOptions([
-                    '-b:a', '192k',
-                    '-threads', '2'
-                ]);
+            command.audioCodec('libmp3lame').outputOptions(['-b:a', '192k', '-threads', '2']);
         }
     }
 
     cleanup(files, listPath) {
         files.forEach(file => {
-            if (fs.existsSync(file.path)) {
-                try {
-                    fs.unlinkSync(file.path);
-                } catch {}
-            }
+            if (fs.existsSync(file.path)) { try { fs.unlinkSync(file.path); } catch {} }
             this.uploadedFiles.delete(file.id);
         });
-
-        if (fs.existsSync(listPath)) {
-            try {
-                fs.unlinkSync(listPath);
-            } catch {}
-        }
+        if (fs.existsSync(listPath)) { try { fs.unlinkSync(listPath); } catch {} }
     }
 
     setupWebSocket() {
-        try {
-            // Para Heroku, usar mesma porta do HTTP
-            const wsPort = process.env.NODE_ENV === 'production' ? this.port : this.wsPort;
-            
-            this.wss = new WebSocket.Server({ 
-                port: wsPort,
-                perMessageDeflate: false 
-            });
-            
-            this.wss.on('connection', (ws, req) => {
-                console.log(`🔌 Cliente web conectado: ${req.connection.remoteAddress}`);
-                
-                ws.send(JSON.stringify({
-                    type: 'connected',
-                    data: { message: 'Conectado ao servidor web' }
-                }));
-                
-                ws.on('close', () => {
-                    console.log('🔌 Cliente web desconectado');
-                });
-            });
+        // ### CORREÇÃO APLICADA AQUI ###
+        // Em vez de criar um novo servidor em uma nova porta,
+        // vamos anexar o WebSocket ao servidor HTTP existente.
+        this.wss = new WebSocket.Server({ 
+            server: this.server, // Reutiliza o servidor HTTP
+            perMessageDeflate: false 
+        });
+        
+        this.wss.on('connection', (ws, req) => {
+            console.log(`🔌 Cliente web conectado`);
+            ws.send(JSON.stringify({ type: 'connected', data: { message: 'Conectado ao servidor web' } }));
+            ws.on('close', () => console.log('🔌 Cliente web desconectado'));
+        });
 
-            console.log(`🔌 WebSocket web na porta ${wsPort}`);
-
-        } catch (error) {
-            console.error('❌ Erro WebSocket web:', error);
-        }
+        // A porta já é a mesma do servidor HTTP, não precisa de log separado.
+        console.log(`🔌 WebSocket pronto e compartilhando a porta ${this.port}`);
     }
 
     broadcast(message) {
         if (!this.wss) return;
-        
         const data = JSON.stringify(message);
-        let sentCount = 0;
-        
         this.wss.clients.forEach(client => {
             if (client.readyState === WebSocket.OPEN) {
-                try {
-                    client.send(data);
-                    sentCount++;
-                } catch (error) {
-                    console.error('❌ Erro envio web:', error);
-                }
+                try { client.send(data); } catch (error) { console.error('❌ Erro envio web:', error); }
             }
         });
     }
 
     start() {
         return new Promise((resolve, reject) => {
+            // AQUI, o this.app.listen CRIA e INICIA o servidor.
+            // Nós o salvamos em this.server para que o WebSocket possa usá-lo.
             this.server = this.app.listen(this.port, () => {
                 console.log('\n🌐 =====================================');
                 console.log('🎬🎵 UNIFICADOR WEB v2.0');
                 console.log('🌐 =====================================');
-                console.log(`🌍 Servidor: http://localhost:${this.port}`);
+                console.log(`🌍 Servidor pronto na porta ${this.port}`);
                 console.log(`📁 Temp: ${this.tempDir}`);
-                console.log('🌐 Pronto para acesso web!');
                 console.log('=====================================\n');
                 
-                // Configurar WebSocket
+                // Agora configuramos o WebSocket para usar o servidor JÁ CRIADO.
                 this.setupWebSocket();
+                
                 resolve();
             }).on('error', reject);
         });
     }
 
     stop() {
-        if (this.server) {
-            this.server.close();
-            console.log('🔴 Servidor web parado');
-        }
-        
         if (this.wss) {
             this.wss.close();
             console.log('🔴 WebSocket web parado');
+        }
+        if (this.server) {
+            this.server.close();
+            console.log('🔴 Servidor web parado');
         }
     }
 }
@@ -585,25 +414,17 @@ module.exports = MediaServerWeb;
 // Executar se chamado diretamente
 if (require.main === module) {
     const server = new MediaServerWeb();
-    
-    server.start().then(() => {
-        console.log('🚀 Servidor web iniciado com sucesso!');
-        console.log(`🌍 Acesse: http://localhost:${server.port}`);
-    }).catch(err => {
-        console.error('❌ Erro ao iniciar servidor web:', err);
+    server.start().catch(err => {
+        console.error('❌ Erro fatal ao iniciar servidor web:', err);
         process.exit(1);
     });
 
     // Tratamento limpo de parada
-    process.on('SIGINT', () => {
+    const shutdown = () => {
         console.log('\n🛑 Parando servidor web...');
         server.stop();
         process.exit(0);
-    });
-
-    process.on('SIGTERM', () => {
-        console.log('\n🛑 Recebido SIGTERM...');
-        server.stop();
-        process.exit(0);
-    });
+    };
+    process.on('SIGINT', shutdown);
+    process.on('SIGTERM', shutdown);
 }
