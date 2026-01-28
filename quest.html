@@ -4,53 +4,104 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Questionário de Pesquisa</title>
-   
+
     <link rel="stylesheet" href="css/quest.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
 </head>
 <body>
-    
+
+    <!-- Loading Overlay -->
+    <div class="loading-overlay hidden" id="loadingOverlay">
+        <div class="loading-content">
+            <div class="loading-spinner"></div>
+            <p>Carregando...</p>
+        </div>
+    </div>
+
     <!-- Botão para abrir o modal -->
     <button id="openLoginModalBtn" class="action-button">
-        <i class="fas fa-clipboard-list"></i>
+        <i class="fas fa-user-shield"></i>
         Acessar Dashboard
     </button>
 
     <div class="questionnaire-container">
         <div class="questionnaire-header">
-            <h1 id="questionnaireSubtitle">Carregando Questionário...</h1>
-           
+            <h1 id="questionnaireSubtitle">Pesquisa de Satisfação</h1>
+
             <div class="questionnaire-info">
-                <span id="locationInfo">Carregando localização...</span>
+                <span id="locationInfo"></span>
                 <span id="dateInfo"></span>
                 <span id="questionnaireInfo" class="hidden"></span>
             </div>
         </div>
 
-        <div class="identification-section">
+        <!-- Seção de Seleção de Local -->
+        <div class="location-section" id="locationSection">
             <div class="question">
-                <h3>Quer se identificar?</h3>
-                <div class="identification-options">
-                    <input type="radio" id="identifyYes" name="identify" value="yes">
-                    <label for="identifyYes">Sim</label>
-                    <input type="radio" id="identifyNo" name="identify" value="no">
-                    <label for="identifyNo">Não</label>
+                <h3><i class="fas fa-map-marker-alt"></i> Selecione sua Localização</h3>
+                <p class="location-description">Escolha o estado e município onde você está respondendo a pesquisa.</p>
+
+                <div class="location-fields">
+                    <div class="field-group">
+                        <label for="selectEstado">Estado <span class="required">*</span></label>
+                        <select id="selectEstado" name="estado" required>
+                            <option value="">Selecione o estado</option>
+                        </select>
+                    </div>
+                    <div class="field-group">
+                        <label for="selectMunicipio">Município <span class="required">*</span></label>
+                        <select id="selectMunicipio" name="municipio" required disabled>
+                            <option value="">Selecione o município</option>
+                        </select>
+                    </div>
                 </div>
-                
+
+                <div class="location-actions">
+                    <button id="confirmLocationBtn" class="btn btn-primary disabled" disabled>
+                        <i class="fas fa-check"></i> Confirmar Localização
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Seção de Identificação -->
+        <div class="identification-section hidden" id="identificationSection">
+            <div class="question">
+                <h3><i class="fas fa-user"></i> Identificação</h3>
+                <p class="identification-description">Você pode se identificar ou responder anonimamente.</p>
+
+                <div class="identification-options">
+                    <label class="radio-card">
+                        <input type="radio" id="identifyYes" name="identify" value="yes">
+                        <span class="radio-card-content">
+                            <i class="fas fa-user-check"></i>
+                            <span>Quero me identificar</span>
+                        </span>
+                    </label>
+                    <label class="radio-card">
+                        <input type="radio" id="identifyNo" name="identify" value="no">
+                        <span class="radio-card-content">
+                            <i class="fas fa-user-secret"></i>
+                            <span>Responder anonimamente</span>
+                        </span>
+                    </label>
+                </div>
+
                 <div id="identificationFields" class="identification-fields hidden">
                     <div class="field-group">
-                        <label for="name">Nome Completo <span class="required">*</span></label>
-                        <input type="text" id="name" name="name" placeholder="Digite seu nome completo" required>
+                        <label for="respondentName">Nome Completo <span class="required">*</span></label>
+                        <input type="text" id="respondentName" name="respondentName" placeholder="Digite seu nome completo">
                     </div>
                     <div class="field-group">
-                        <label for="position">Cargo/Função <span class="required">*</span></label>
-                        <input type="text" id="position" name="position" placeholder="Digite seu cargo" required>
+                        <label for="respondentPosition">Cargo/Função <span class="required">*</span></label>
+                        <input type="text" id="respondentPosition" name="respondentPosition" placeholder="Digite seu cargo">
                     </div>
-                    <div class="start-questionnaire-container">
-                        <button id="startQuestionnaireBtn" class="btn btn-primary disabled" disabled>
-                            Iniciar Questionário
-                        </button>
-                    </div>
+                </div>
+
+                <div class="start-questionnaire-container">
+                    <button id="startQuestionnaireBtn" class="btn btn-primary disabled" disabled>
+                        <i class="fas fa-play"></i> Iniciar Questionário
+                    </button>
                 </div>
             </div>
         </div>
@@ -302,7 +353,11 @@
         </div>
     </div>
 
+    <!-- SweetAlert2 -->
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+
+    <!-- Scripts da aplicação -->
     <script src="jsquest/login.js"></script>
-<script src="jsquest/quest.js"></script>
+    <script src="jsquest/quest.js"></script>
 </body>
 </html>

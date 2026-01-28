@@ -110,12 +110,24 @@
                     <i class="fas fa-user"></i>
                 </div>
                 <div class="user-details">
-                    <span class="user-name">Administrador</span>
+                    <span class="user-name" id="userName">Administrador</span>
                     <span class="user-role">Sistema de Pesquisas</span>
                 </div>
             </div>
+            <button class="btn-logout" id="logoutBtn" title="Sair do sistema">
+                <i class="fas fa-sign-out-alt"></i>
+                <span>Sair</span>
+            </button>
         </div>
     </aside>
+
+    <!-- Loading Overlay Global -->
+    <div class="loading-overlay hidden" id="loadingOverlay">
+        <div class="loading-content">
+            <div class="loading-spinner"></div>
+            <p>Carregando...</p>
+        </div>
+    </div>
 
     <!-- ==================== CONTEÚDO PRINCIPAL ==================== -->
     <div class="main-content" id="mainContent">
@@ -191,7 +203,7 @@
                             <i class="fas fa-smile"></i>
                         </div>
                         <div class="stat-content">
-                            <div class="stat-value" id="satisfacaoMedia">0%</div>
+                            <div class="stat-value" id="mediaSatisfacao">0</div>
                             <div class="stat-label">Satisfação Média</div>
                         </div>
                     </div>
@@ -232,7 +244,7 @@
                             </div>
                         </div>
                         <div class="chart-body">
-                            <canvas id="satisfacaoChart"></canvas>
+                            <canvas id="chartSatisfacao"></canvas>
                         </div>
                     </div>
 

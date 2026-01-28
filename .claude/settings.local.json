@@ -1,0 +1,7 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(git commit -m \"$\\(cat <<''EOF''\nrefactor: Migração completa para arquitetura com backend\n\n## Backend \\(Node.js + Express + PostgreSQL\\)\n- API RESTful com autenticação JWT\n- Endpoints: auth, questionnaires, locations, responses, analytics, export\n- Migrations e seeds para banco de dados\n- Serviço de analytics com cálculos estatísticos\n\n## Frontend \\(Vanilla JS refatorado\\)\n- Cliente API centralizado com gerenciamento de tokens\n- Módulos: dashboard, analytics, locations, responses\n- Integração com ApexCharts para gráficos de análise\n- Formulário público para respostas de questionários\n\n## Configuração\n- render.yaml para deploy no Render.com\n- Suporte a PostgreSQL em produção\n\nCo-Authored-By: Claude Opus 4.5 <noreply@anthropic.com>\nEOF\n\\)\")"
+    ]
+  }
+}
