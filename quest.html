@@ -1,0 +1,308 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Questionário de Pesquisa</title>
+   
+    <link rel="stylesheet" href="css/quest.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+</head>
+<body>
+    
+    <!-- Botão para abrir o modal -->
+    <button id="openLoginModalBtn" class="action-button">
+        <i class="fas fa-clipboard-list"></i>
+        Acessar Dashboard
+    </button>
+
+    <div class="questionnaire-container">
+        <div class="questionnaire-header">
+            <h1 id="questionnaireSubtitle">Carregando Questionário...</h1>
+           
+            <div class="questionnaire-info">
+                <span id="locationInfo">Carregando localização...</span>
+                <span id="dateInfo"></span>
+                <span id="questionnaireInfo" class="hidden"></span>
+            </div>
+        </div>
+
+        <div class="identification-section">
+            <div class="question">
+                <h3>Quer se identificar?</h3>
+                <div class="identification-options">
+                    <input type="radio" id="identifyYes" name="identify" value="yes">
+                    <label for="identifyYes">Sim</label>
+                    <input type="radio" id="identifyNo" name="identify" value="no">
+                    <label for="identifyNo">Não</label>
+                </div>
+                
+                <div id="identificationFields" class="identification-fields hidden">
+                    <div class="field-group">
+                        <label for="name">Nome Completo <span class="required">*</span></label>
+                        <input type="text" id="name" name="name" placeholder="Digite seu nome completo" required>
+                    </div>
+                    <div class="field-group">
+                        <label for="position">Cargo/Função <span class="required">*</span></label>
+                        <input type="text" id="position" name="position" placeholder="Digite seu cargo" required>
+                    </div>
+                    <div class="start-questionnaire-container">
+                        <button id="startQuestionnaireBtn" class="btn btn-primary disabled" disabled>
+                            Iniciar Questionário
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div id="questionnaireContent" class="hidden">
+            <div id="progressIndicator" class="progress-indicator">
+                <!-- Os pontos de progresso serão adicionados dinamicamente pelo JavaScript -->
+            </div>
+
+            <form id="questionnaireForm">
+                <div id="questionContainer" class="question-container">
+                    <!-- Container for dynamic questions -->
+                </div>
+
+                <!-- Templates para diferentes tipos de perguntas -->
+                <template id="scaleQuestionTemplate">
+                    <div class="question-wrapper">
+                        <div class="question">
+                            <h3 class="question-text"></h3>
+                            <span class="required-mark">*</span>
+                            <div class="rating-container">
+                                <!-- Radio buttons serão adicionados dinamicamente aqui -->
+                            </div>
+                        </div>
+                    </div>
+                </template>
+
+                <template id="multipleChoiceQuestionTemplate">
+                    <div class="question-wrapper">
+                        <div class="question">
+                            <h3 class="question-text"></h3>
+                            <span class="required-mark">*</span>
+                            <div class="multiple-choice-container">
+                                <!-- Opções serão adicionadas dinamicamente aqui -->
+                            </div>
+                            <div class="next-button-container hidden">
+                                <button type="button" class="btn-next">Próxima</button>
+                            </div>
+                        </div>
+                    </div>
+                </template>
+
+                <template id="booleanQuestionTemplate">
+                    <div class="question-wrapper">
+                        <div class="question">
+                            <h3 class="question-text"></h3>
+                            <span class="required-mark">*</span>
+                            <div class="boolean-container">
+                                <input type="radio" class="true-option" name="" value="true" required>
+                                <label class="true-label">Sim</label>
+                                <input type="radio" class="false-option" name="" value="false" required>
+                                <label class="false-label">Não</label>
+                            </div>
+                        </div>
+                    </div>
+                </template>
+
+                <template id="textQuestionTemplate">
+                    <div class="question-wrapper">
+                        <div class="question">
+                            <h3 class="question-text"></h3>
+                            <span class="required-mark">*</span>
+                            <textarea class="text-input" name="" placeholder="Digite sua resposta..." maxlength="500" required></textarea>
+                        </div>
+                    </div>
+                </template>
+
+                <!-- Template para opção de múltipla escolha -->
+                <template id="choiceOptionTemplate">
+                    <div class="form-check">
+                        <input type="radio" class="form-check-input" name="" value="">
+                        <label class="form-check-label"></label>
+                    </div>
+                </template>
+
+                <!-- Template para opção de múltipla escolha com checkboxes -->
+                <template id="checkboxOptionTemplate">
+                    <div class="form-check">
+                        <input type="checkbox" class="form-check-input" name="" value="">
+                        <label class="form-check-label"></label>
+                    </div>
+                </template>
+
+                <!-- Template para botões de escala -->
+                <template id="scaleButtonTemplate">
+                    <input type="radio" class="scale-input" name="" value="" required>
+                    <label class="scale-label"></label>
+                </template>
+
+                <!-- Mensagem quando não há template -->
+                <div id="noTemplateMessage" class="no-template-message hidden">
+                    <h3>Questionário Indisponível</h3>
+                    <p>Não há questionários ativos no momento. Entre em contato com o administrador.</p>
+                </div>
+
+                <div class="navigation-buttons">
+                    <button type="button" id="prevQuestionBtn" class="btn btn-secondary hidden">Anterior</button>
+                    <button type="button" id="nextQuestionBtn" class="btn btn-primary hidden">Próximo</button>
+                    <button type="button" id="submitQuestionnaireBtn" class="btn btn-success hidden">Finalizar Questionário</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Container de Agradecimento -->
+    <div id="thankyouContainer" class="thankyou-container hidden">
+        <div class="thankyou-content">
+            <h2>Muito Obrigado!</h2>
+            <p>Suas respostas foram enviadas com sucesso.</p>
+            <p>Agradecemos sua participação e colaboração nesta pesquisa.</p>
+            <p>Seus insights são importantes para nós.</p>
+        </div>
+    </div>
+
+    <!-- Modal de Confirmação de Resposta -->
+    <div id="responseModal" class="modal hidden">
+        <div class="modal-content">
+            <span class="close-modal">&times;</span>
+            <h2>Confirmação de Resposta</h2>
+            <p id="responseModalText">Tem certeza que deseja enviar suas respostas?</p>
+            <div class="modal-buttons">
+                <button id="confirmSubmitBtn" class="btn btn-primary">Confirmar</button>
+                <button id="cancelSubmitBtn" class="btn btn-secondary">Cancelar</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal de Login -->
+    <div id="loginModal" class="modal hidden">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>Entrar no Sistema</h2>
+                <span class="login-close">&times;</span>
+            </div>
+            
+            <div class="modal-body">
+                <div id="modal-error-message" class="error-message hidden">
+                    Documento ou senha incorretos.
+                </div>
+                
+                <form id="modal-login-form">
+                    <div class="form-group">
+                        <label for="modal-documento">CPF/CNPJ</label>
+                        <input type="text" id="modal-documento" name="documento" placeholder="Digite seu CPF ou CNPJ" required>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="modal-password">Senha</label>
+                        <div class="password-container">
+                            <input type="password" id="modal-password" name="password" placeholder="Digite sua senha" required>
+                            <button type="button" onclick="togglePassword('modal-password', this)">
+                                <i class="fas fa-eye"></i>
+                            </button>
+                        </div>
+                    </div>
+                    
+                    <button type="submit" class="submit-button">Entrar</button>
+                </form>
+            </div>
+            
+            <div class="modal-footer">
+                <a href="#" id="modal-esqueceu-senha">Esqueceu sua senha?</a>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal de Recuperação de Senha -->
+    <div id="recuperacaoSenhaModal" class="modal hidden">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>Recuperar Senha</h2>
+                <span class="recuperacao-close">&times;</span>
+            </div>
+            
+            <div class="modal-body">
+                <div id="recuperacao-error-message" class="error-message hidden">
+                    Erro na recuperação de senha.
+                </div>
+                
+                <div id="recuperacao-success-message" class="success-message hidden">
+                    Código enviado para seu e-mail!
+                </div>
+                
+                <form id="form-recuperacao-senha">
+                    <div class="form-group">
+                        <label for="recuperacao-email">E-mail</label>
+                        <input type="email" id="recuperacao-email" name="email" placeholder="Digite seu e-mail cadastrado" required>
+                    </div>
+                    
+                    <div id="campo-codigo-container" class="form-group hidden">
+                        <label for="codigo-recuperacao">Código de Verificação</label>
+                        <input type="text" id="codigo-recuperacao" name="codigo" placeholder="Digite o código recebido por e-mail" maxlength="6">
+                        <small>Verifique sua caixa de entrada e spam</small>
+                    </div>
+                    
+                    <button type="submit" class="submit-button">Enviar Código</button>
+                </form>
+            </div>
+            
+            <div class="modal-footer">
+                <a href="#" id="recuperacao-abrir-login">Voltar ao login</a>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal de Nova Senha -->
+    <div id="novaSenhaModal" class="modal hidden">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>Redefinir Senha</h2>
+                <span class="nova-senha-close">&times;</span>
+            </div>
+            
+            <div class="modal-body">
+                <div id="nova-senha-error-message" class="error-message hidden">
+                    Erro ao redefinir senha.
+                </div>
+                
+                <div id="nova-senha-success-message" class="success-message hidden">
+                    Senha redefinida com sucesso!
+                </div>
+                
+                <form id="form-nova-senha">
+                    <input type="hidden" id="email-nova-senha" name="email">
+                    
+                    <div class="form-group">
+                        <label for="nova-senha">Nova Senha <span class="required">*</span></label>
+                        <div class="password-container">
+                            <input type="password" id="nova-senha" name="novaSenha" placeholder="Digite sua nova senha (mín. 4 caracteres)" required>
+                            <button type="button" onclick="togglePassword('nova-senha', this)">
+                                <i class="fas fa-eye"></i>
+                            </button>
+                        </div>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="confirmar-nova-senha">Confirmar Nova Senha <span class="required">*</span></label>
+                        <div class="password-container">
+                            <input type="password" id="confirmar-nova-senha" name="confirmarNovaSenha" placeholder="Confirme sua nova senha" required>
+                            <button type="button" onclick="togglePassword('confirmar-nova-senha', this)">
+                                <i class="fas fa-eye"></i>
+                            </button>
+                        </div>
+                    </div>
+                    
+                    <button type="submit" class="submit-button">Alterar Senha</button>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <script src="jsquest/login.js"></script>
+<script src="jsquest/quest.js"></script>
+</body>
+</html>

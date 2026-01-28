@@ -1,0 +1,748 @@
+/* Reset básico */
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+/* Variáveis CSS */
+:root {
+    --primary: #2563eb;
+    --primary-hover: #1d4ed8;
+    --success: #10b981;
+    --error: #ef4444;
+    --gray-100: #f1f5f9;
+    --gray-200: #e2e8f0;
+    --gray-300: #cbd5e1;
+    --gray-500: #64748b;
+    --gray-700: #334155;
+    --gray-800: #1e293b;
+    --white: #ffffff;
+    --shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+    --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+    --radius: 0.5rem;
+    --transition: 0.2s ease;
+}
+
+/* Base */
+body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    line-height: 1.6;
+    color: var(--gray-800);
+    background: linear-gradient(135deg, var(--gray-100) 0%, var(--gray-200) 100%);
+    min-height: 100vh;
+}
+
+/* Botão Dashboard */
+.action-button {
+    position: fixed;
+    top: 1.5rem;
+    right: 1.5rem;
+    background: var(--primary);
+    color: var(--white);
+    border: none;
+    padding: 0.75rem 1.25rem;
+    border-radius: var(--radius);
+    font-weight: 600;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    box-shadow: var(--shadow);
+    transition: all var(--transition);
+    z-index: 1000;
+}
+
+.action-button:hover {
+    background: var(--primary-hover);
+    transform: translateY(-2px);
+    box-shadow: var(--shadow-lg);
+}
+
+/* Container principal */
+.questionnaire-container {
+    max-width: 800px;
+    margin: 4rem auto 2rem;
+    padding: 2rem;
+    background: var(--white);
+    border-radius: var(--radius);
+    box-shadow: var(--shadow-lg);
+}
+
+/* Cabeçalho */
+.questionnaire-header {
+    text-align: center;
+    margin-bottom: 2rem;
+}
+
+.questionnaire-header h1 {
+    font-size: 2rem;
+    font-weight: 700;
+    color: var(--primary);
+    margin-bottom: 1rem;
+}
+
+.questionnaire-info {
+    display: flex;
+    justify-content: center;
+    gap: 1.5rem;
+    flex-wrap: wrap;
+}
+
+.questionnaire-info span {
+    background: var(--gray-100);
+    padding: 0.5rem 1rem;
+    border-radius: var(--radius);
+    font-size: 0.875rem;
+    color: var(--gray-700);
+}
+
+/* Identificação */
+.identification-section {
+    background: var(--gray-100);
+    padding: 1.5rem;
+    border-radius: var(--radius);
+    margin-bottom: 2rem;
+}
+
+.identification-section h3 {
+    font-size: 1.25rem;
+    font-weight: 600;
+    margin-bottom: 1rem;
+    text-align: center;
+}
+
+.identification-options {
+    display: flex;
+    justify-content: center;
+    gap: 2rem;
+    margin-bottom: 1.5rem;
+}
+
+.identification-options label {
+    display: flex;
+    align-items: center;
+    cursor: pointer;
+    font-weight: 500;
+}
+
+.identification-options input[type="radio"] {
+    margin-right: 0.5rem;
+}
+
+.identification-fields {
+    display: grid;
+    gap: 1rem;
+    transition: all var(--transition);
+}
+
+.identification-fields.hidden {
+    display: none;
+}
+
+.field-group {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+
+.field-group label {
+    font-weight: 600;
+    color: var(--gray-700);
+}
+
+.field-group input {
+    padding: 0.75rem;
+    border: 2px solid var(--gray-200);
+    border-radius: var(--radius);
+    transition: border-color var(--transition);
+}
+
+.field-group input:focus {
+    outline: none;
+    border-color: var(--primary);
+}
+
+.start-questionnaire-container {
+    display: flex;
+    justify-content: center;
+    margin-top: 1.5rem;
+}
+
+/* Botões */
+.btn {
+    padding: 0.75rem 1.5rem;
+    border: none;
+    border-radius: var(--radius);
+    font-weight: 600;
+    cursor: pointer;
+    transition: all var(--transition);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.btn-primary {
+    background: var(--primary);
+    color: var(--white);
+}
+
+.btn-primary:hover:not(.disabled) {
+    background: var(--primary-hover);
+    transform: translateY(-1px);
+}
+
+.btn-secondary {
+    background: var(--gray-200);
+    color: var(--gray-700);
+}
+
+.btn-success {
+    background: var(--success);
+    color: var(--white);
+}
+
+.btn.disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+    transform: none !important;
+}
+
+/* Perguntas */
+.question-container {
+    position: relative;
+    min-height: 300px;
+    margin-bottom: 2rem;
+}
+
+.question-wrapper {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    opacity: 0;
+    transform: translateX(100px);
+    transition: all 0.3s ease;
+}
+
+.question-wrapper.active {
+    opacity: 1;
+    transform: translateX(0);
+}
+
+.question {
+    background: var(--white);
+    padding: 1.5rem;
+    border-radius: var(--radius);
+    border: 2px solid var(--gray-200);
+    box-shadow: var(--shadow);
+}
+
+.question-text {
+    font-size: 1.25rem;
+    font-weight: 600;
+    margin-bottom: 1.5rem;
+    text-align: center;
+}
+
+.required-mark {
+    color: var(--error);
+    margin-left: 0.25rem;
+}
+
+/* Escalas */
+.rating-container {
+    display: flex;
+    justify-content: center;
+    gap: 0.75rem;
+    flex-wrap: wrap;
+}
+
+.scale-input {
+    position: absolute;
+    opacity: 0;
+}
+
+.scale-label {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 50px;
+    height: 50px;
+    border: 2px solid var(--gray-300);
+    border-radius: var(--radius);
+    font-weight: 600;
+    cursor: pointer;
+    transition: all var(--transition);
+    background: var(--white);
+}
+
+.scale-label:hover {
+    border-color: var(--primary);
+    color: var(--primary);
+}
+
+.scale-input:checked + .scale-label {
+    background: var(--primary);
+    border-color: var(--primary);
+    color: var(--white);
+}
+
+/* Múltipla escolha */
+.multiple-choice-container,
+.boolean-container {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+}
+
+.boolean-container {
+    flex-direction: row;
+    justify-content: center;
+    gap: 1.5rem;
+}
+
+.form-check {
+    padding: 1rem;
+    border: 2px solid var(--gray-200);
+    border-radius: var(--radius);
+    cursor: pointer;
+    transition: all var(--transition);
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+}
+
+.form-check:hover {
+    border-color: var(--primary);
+    background: var(--gray-100);
+}
+
+.form-check-input {
+    width: 20px;
+    height: 20px;
+    border: 2px solid var(--gray-300);
+    border-radius: 4px;
+    cursor: pointer;
+}
+
+.form-check-input[type="radio"] {
+    border-radius: 50%;
+}
+
+.form-check-input:checked {
+    background: var(--primary);
+    border-color: var(--primary);
+}
+
+.form-check-label {
+    font-weight: 500;
+    cursor: pointer;
+    flex: 1;
+}
+
+/* Texto */
+.text-input {
+    width: 100%;
+    min-height: 120px;
+    padding: 1rem;
+    border: 2px solid var(--gray-200);
+    border-radius: var(--radius);
+    font-family: inherit;
+    resize: vertical;
+    transition: border-color var(--transition);
+}
+
+.text-input:focus {
+    outline: none;
+    border-color: var(--primary);
+}
+
+/* Navegação */
+.navigation-buttons {
+    display: flex;
+    justify-content: center;
+    gap: 1rem;
+    margin-top: 2rem;
+}
+
+.next-button-container {
+    display: flex;
+    justify-content: center;
+    margin-top: 1.5rem;
+}
+
+.btn-next {
+    background: var(--primary);
+    color: var(--white);
+    border: none;
+    padding: 0.75rem 1.5rem;
+    border-radius: var(--radius);
+    font-weight: 600;
+    cursor: pointer;
+    transition: all var(--transition);
+}
+
+.btn-next:hover {
+    background: var(--primary-hover);
+}
+
+/* Sem template */
+.no-template-message {
+    text-align: center;
+    padding: 3rem;
+    background: var(--gray-100);
+    border-radius: var(--radius);
+    border: 2px dashed var(--gray-300);
+}
+
+.no-template-message h3 {
+    font-size: 1.5rem;
+    font-weight: 600;
+    margin-bottom: 1rem;
+}
+
+/* Agradecimento */
+.thankyou-container {
+    max-width: 600px;
+    margin: 4rem auto;
+    padding: 3rem;
+    background: var(--white);
+    border-radius: var(--radius);
+    box-shadow: var(--shadow-lg);
+    text-align: center;
+    border: 4px solid var(--success);
+}
+
+.thankyou-content h2 {
+    font-size: 2rem;
+    font-weight: 700;
+    color: var(--success);
+    margin-bottom: 1.5rem;
+}
+
+.thankyou-content p {
+    font-size: 1.125rem;
+    color: var(--gray-700);
+    margin-bottom: 1rem;
+}
+
+/* Modais */
+.modal {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.6);
+    display: none;
+    align-items: center;
+    justify-content: center;
+    z-index: 10000;
+}
+
+.modal.show {
+    display: flex !important;
+}
+
+.modal-content {
+    background: var(--white);
+    border-radius: var(--radius);
+    box-shadow: var(--shadow-lg);
+    max-width: 500px;
+    width: 90%;
+    max-height: 90vh;
+    overflow-y: auto;
+}
+
+.modal-header {
+    padding: 1.5rem 1.5rem 1rem;
+    border-bottom: 1px solid var(--gray-200);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.modal-header h2 {
+    font-size: 1.25rem;
+    font-weight: 600;
+}
+
+.login-close,
+.recuperacao-close,
+.nova-senha-close,
+.close-modal {
+    background: none;
+    border: none;
+    font-size: 24px;
+    color: var(--gray-500);
+    cursor: pointer;
+    padding: 0.5rem;
+}
+
+.modal-body {
+    padding: 1.5rem;
+}
+
+.modal-footer {
+    padding: 1rem 1.5rem;
+    border-top: 1px solid var(--gray-200);
+    text-align: center;
+}
+
+.modal-footer a {
+    color: var(--primary);
+    text-decoration: none;
+    font-weight: 500;
+}
+
+.modal-footer a:hover {
+    text-decoration: underline;
+}
+
+.modal-buttons {
+    display: flex;
+    gap: 0.75rem;
+    justify-content: center;
+    margin-top: 1.5rem;
+}
+
+/* Formulários */
+.form-group {
+    margin-bottom: 1rem;
+}
+
+.form-group label {
+    display: block;
+    font-weight: 600;
+    color: var(--gray-700);
+    margin-bottom: 0.5rem;
+}
+
+.form-group input {
+    width: 100%;
+    padding: 0.75rem;
+    border: 2px solid var(--gray-200);
+    border-radius: var(--radius);
+    transition: border-color var(--transition);
+}
+
+.form-group input:focus {
+    outline: none;
+    border-color: var(--primary);
+}
+
+.password-container {
+    position: relative;
+}
+
+.password-container button {
+    position: absolute;
+    right: 0.75rem;
+    top: 50%;
+    transform: translateY(-50%);
+    background: none;
+    border: none;
+    color: var(--gray-500);
+    cursor: pointer;
+}
+
+.submit-button {
+    width: 100%;
+    background: var(--primary);
+    color: var(--white);
+    border: none;
+    padding: 1rem;
+    border-radius: var(--radius);
+    font-weight: 600;
+    cursor: pointer;
+    transition: all var(--transition);
+    margin-top: 1rem;
+}
+
+.submit-button:hover:not(:disabled) {
+    background: var(--primary-hover);
+}
+
+.submit-button:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+/* Mensagens */
+.error-message,
+.success-message {
+    padding: 0.75rem;
+    border-radius: var(--radius);
+    font-weight: 500;
+    margin-bottom: 1rem;
+}
+
+.error-message {
+    background: #fef2f2;
+    color: var(--error);
+    border-left: 4px solid var(--error);
+}
+
+.success-message {
+    background: #f0fdf4;
+    color: var(--success);
+    border-left: 4px solid var(--success);
+}
+
+/* Utilitários */
+.hidden {
+    display: none !important;
+}
+
+.required {
+    color: var(--error);
+}
+
+/* Responsivo */
+@media (max-width: 768px) {
+    .questionnaire-container {
+        margin: 1rem;
+        padding: 1rem;
+    }
+
+    .questionnaire-header h1 {
+        font-size: 1.5rem;
+    }
+
+    .questionnaire-info {
+        flex-direction: column;
+        align-items: center;
+    }
+
+    .identification-options {
+        flex-direction: column;
+        gap: 1rem;
+    }
+
+    .rating-container {
+        gap: 0.5rem;
+    }
+
+    .scale-label {
+        width: 40px;
+        height: 40px;
+    }
+
+    .boolean-container {
+        flex-direction: column;
+        gap: 1rem;
+    }
+
+    .modal-content {
+        width: 95%;
+        margin: 1rem;
+    }
+
+    .modal-header,
+    .modal-body,
+    .modal-footer {
+        padding: 1rem;
+    }
+
+    .action-button {
+        top: 1rem;
+        right: 1rem;
+        padding: 0.5rem 0.75rem;
+        font-size: 0.875rem;
+    }
+
+    .thankyou-container {
+        margin: 2rem 1rem;
+        padding: 2rem;
+    }
+}
+
+
+
+/* Adicione este CSS específico para o modal de confirmação */
+
+#responseModal.modal.show {
+    display: flex !important;
+    background: rgba(0, 0, 0, 0.6);
+    backdrop-filter: blur(5px);
+}
+
+#responseModal .modal-content {
+    background: var(--white);
+    border-radius: var(--radius);
+    box-shadow: var(--shadow-lg);
+    max-width: 400px;
+    width: 90%;
+    padding: 0;
+    margin: auto;
+}
+
+#responseModal h2 {
+    font-size: 1.25rem;
+    font-weight: 600;
+    color: var(--gray-800);
+    margin: 0 0 1rem 0;
+    padding: 1.5rem 1.5rem 0;
+}
+
+#responseModal p {
+    color: var(--gray-700);
+    margin: 0 0 1.5rem 0;
+    padding: 0 1.5rem;
+    line-height: 1.6;
+}
+
+#responseModal .modal-buttons {
+    display: flex;
+    gap: 0.75rem;
+    justify-content: center;
+    padding: 0 1.5rem 1.5rem;
+}
+
+#responseModal .modal-buttons .btn {
+    flex: 1;
+    max-width: 120px;
+    padding: 0.75rem 1rem;
+    border: none;
+    border-radius: var(--radius);
+    font-weight: 600;
+    cursor: pointer;
+    transition: all var(--transition);
+}
+
+#responseModal .btn-primary {
+    background: var(--primary);
+    color: var(--white);
+}
+
+#responseModal .btn-primary:hover {
+    background: var(--primary-hover);
+}
+
+#responseModal .btn-secondary {
+    background: var(--gray-200);
+    color: var(--gray-700);
+}
+
+#responseModal .btn-secondary:hover {
+    background: var(--gray-300);
+}
+
+#responseModal .close-modal {
+    position: absolute;
+    top: 1rem;
+    right: 1rem;
+    background: none;
+    border: none;
+    font-size: 24px;
+    color: var(--gray-500);
+    cursor: pointer;
+    padding: 0.5rem;
+    line-height: 1;
+    transition: color var(--transition);
+}
+
+#responseModal .close-modal:hover {
+    color: var(--gray-700);
+}

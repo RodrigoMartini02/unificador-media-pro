@@ -1,0 +1,1090 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="Dashboard de Pesquisa de Satisfação - Análise detalhada das respostas dos usuários">
+    <title>DADOS DA PESQUISA</title>
+    
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    
+    <!-- Font Awesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.3/css/all.min.css">
+    
+    <!-- Estilos Customizados -->
+    <link rel="stylesheet" href="css/index.css">
+ 
+</head>
+<body>
+    
+    <!-- ==================== SIDEBAR (MENU LATERAL) ==================== -->
+    <aside class="sidebar" id="sidebar">
+        <!-- Cabeçalho da Sidebar -->
+        <div class="sidebar-header">
+            <div class="sidebar-logo">
+                <i class="fas fa-chart-line"></i>
+                <span class="sidebar-title">Analytics</span>
+            </div>
+            <button class="sidebar-toggle" id="sidebarToggle">
+                <i class="fas fa-bars"></i>
+            </button>
+        </div>
+
+        <!-- Navegação Principal -->
+        <nav class="sidebar-nav">
+            <!-- Seção: Principal -->
+            <div class="nav-section">
+                <h4 class="nav-section-title">Principal</h4>
+                <ul class="nav-menu">
+                    <li class="nav-item active">
+                        <a href="#" class="nav-link" data-section="dashboard">
+                            <i class="fas fa-chart-bar"></i>
+                            <span>Dashboard</span>
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a href="quest.html" class="nav-link">
+                            <i class="fas fa-clipboard-list"></i>
+                            <span>Acessar Questionário</span>
+                        </a>
+                    </li>
+                </ul>
+            </div>
+
+            <!-- Seção: Gerenciamento -->
+            <div class="nav-section">
+                <h4 class="nav-section-title">Gerenciamento</h4>
+                <ul class="nav-menu">
+                    <li class="nav-item">
+                        <a href="#" class="nav-link" data-section="definir-local">
+                            <i class="fas fa-map-marker-alt"></i>
+                            <span>Definir Local</span>
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a href="#" class="nav-link" data-section="questionarios">
+                            <i class="fas fa-tasks"></i>
+                            <span>Questionários</span>
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a href="#" class="nav-link" data-section="locais">
+                            <i class="fas fa-plus-circle"></i>
+                            <span>Adicionar Locais</span>
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a href="#" class="nav-link" data-section="criar-questionario">
+                            <i class="fas fa-edit"></i>
+                            <span>Criar Questionários</span>
+                        </a>
+                    </li>
+                </ul>
+            </div>
+
+            <!-- Seção: Dados -->
+            <div class="nav-section">
+                <h4 class="nav-section-title">Dados</h4>
+                <ul class="nav-menu">
+                    <li class="nav-item">
+                        <a href="#" class="nav-link" data-section="sugestoes">
+                            <i class="fas fa-comments"></i>
+                            <span>Sugestões de Melhorias</span>
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a href="#" class="nav-link" id="limparDados">
+                            <i class="fas fa-trash-alt"></i>
+                            <span>Limpar Dados</span>
+                        </a>
+                    </li>
+                </ul>
+            </div>
+        </nav>
+
+        <!-- Rodapé da Sidebar - Informações do Usuário -->
+        <div class="sidebar-footer">
+            <div class="user-info">
+                <div class="user-avatar">
+                    <i class="fas fa-user"></i>
+                </div>
+                <div class="user-details">
+                    <span class="user-name">Administrador</span>
+                    <span class="user-role">Sistema de Pesquisas</span>
+                </div>
+            </div>
+        </div>
+    </aside>
+
+    <!-- ==================== CONTEÚDO PRINCIPAL ==================== -->
+    <div class="main-content" id="mainContent">
+        
+        <!-- ==================== SEÇÃO: DASHBOARD ==================== -->
+        <section class="content-section active" id="section-dashboard">
+            <header class="section-header">
+                <div class="header-left">
+                    <button class="mobile-menu-toggle" id="mobileMenuToggle">
+                        <i class="fas fa-bars"></i>
+                    </button>
+                    <h1 class="section-title">Dashboard</h1>
+                </div>
+
+                <div class="header-right">
+                    <div class="header-controls">
+                        <!-- Filtros de Localização -->
+                        <div class="control-group">
+                            <select id="stateSelect" class="form-select">
+                                <option value="">Todos os Estados</option>
+                            </select>
+                            <select id="municipalitySelect" class="form-select">
+                                <option value="">Todos os Municípios</option>
+                            </select>
+                        </div>
+
+                        <!-- Filtros de Questionário -->
+                        <div class="control-group">
+                            <select id="questionarioFilterSelect" class="form-select">
+                                <option value="">Todos os Questionários</option>
+                            </select>
+                            <select id="filtroPergunta" class="form-select">
+                                <option value="">Todas as Perguntas</option>
+                            </select>
+                        </div>
+
+                        <!-- Filtro de Período -->
+                        <div class="control-group">
+                            <select class="form-select period-selector">
+                                <option value="7">Últimos 7 dias</option>
+                                <option value="30">Últimos 30 dias</option>
+                                <option value="90">Últimos 90 dias</option>
+                                <option value="all">Todo o período</option>
+                            </select>
+                        </div>
+
+                        <!-- Exportação -->
+                        <div class="control-group">
+                            <button class="btn btn-export" id="exportButton">
+                                <i class="fas fa-download"></i>
+                                Exportar
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </header>
+
+            <div class="section-content">
+                <!-- Cards de Estatísticas -->
+                <div class="stats-grid">
+                    <div class="stat-card">
+                        <div class="stat-icon">
+                            <i class="fas fa-chart-bar"></i>
+                        </div>
+                        <div class="stat-content">
+                            <div class="stat-value" id="totalRespostas">0</div>
+                            <div class="stat-label">Total de Respostas</div>
+                        </div>
+                    </div>
+
+                    <div class="stat-card">
+                        <div class="stat-icon">
+                            <i class="fas fa-smile"></i>
+                        </div>
+                        <div class="stat-content">
+                            <div class="stat-value" id="satisfacaoMedia">0%</div>
+                            <div class="stat-label">Satisfação Média</div>
+                        </div>
+                    </div>
+
+                    <div class="stat-card">
+                        <div class="stat-icon">
+                            <i class="fas fa-map-marker-alt"></i>
+                        </div>
+                        <div class="stat-content">
+                            <div class="stat-value" id="totalLocais">0</div>
+                            <div class="stat-label">Locais Avaliados</div>
+                        </div>
+                    </div>
+
+                    <div class="stat-card">
+                        <div class="stat-icon">
+                            <i class="fas fa-calendar-day"></i>
+                        </div>
+                        <div class="stat-content">
+                            <div class="stat-value" id="respostasHoje">0</div>
+                            <div class="stat-label">Respostas Hoje</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Gráficos e Análises -->
+                <div class="dashboard-grid">
+                    <!-- Gráfico de Satisfação Geral -->
+                    <div class="chart-container">
+                        <div class="chart-header">
+                            <h3 class="chart-title">Satisfação Geral</h3>
+                            <div class="chart-controls">
+                                <select class="chart-filter">
+                                    <option value="all">Todos os Períodos</option>
+                                    <option value="week">Esta Semana</option>
+                                    <option value="month">Este Mês</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="chart-body">
+                            <canvas id="satisfacaoChart"></canvas>
+                        </div>
+                    </div>
+
+                    <!-- Ranking de Locais -->
+                    <div class="chart-container">
+                        <div class="chart-header">
+                            <h3 class="chart-title">Ranking por Locais</h3>
+                        </div>
+                        <div class="chart-body">
+                            <div class="ranking-list" id="rankingLocais">
+                                <!-- Lista será preenchida via JavaScript -->
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Distribuição de Respostas -->
+                    <div class="chart-container">
+                        <div class="chart-header">
+                            <h3 class="chart-title">Distribuição de Respostas</h3>
+                        </div>
+                        <div class="chart-body">
+                            <canvas id="distribuicaoChart"></canvas>
+                        </div>
+                    </div>
+
+                    <!-- Evolução Temporal -->
+                    <div class="chart-container">
+                        <div class="chart-header">
+                            <h3 class="chart-title">Evolução Temporal</h3>
+                        </div>
+                        <div class="chart-body">
+                            <canvas id="evolucaoChart"></canvas>
+                        </div>
+                    </div>
+
+                    <!-- Análise por Perguntas -->
+                    <div class="chart-container">
+                        <div class="chart-header">
+                            <h3 class="chart-title">Análise por Perguntas</h3>
+                        </div>
+                        <div class="chart-body">
+                            <div class="perguntas-analysis" id="perguntasAnalysis">
+                                <!-- Análise será preenchida via JavaScript -->
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Comentários Recentes -->
+                    <div class="chart-container">
+                        <div class="chart-header">
+                            <h3 class="chart-title">Comentários Recentes</h3>
+                        </div>
+                        <div class="chart-body">
+                            <div class="comentarios-list" id="comentariosRecentes">
+                                <!-- Comentários serão preenchidos via JavaScript -->
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- ==================== SEÇÃO: DEFINIR LOCAL ==================== -->
+        <section class="content-section" id="section-definir-local">
+            <header class="section-header">
+                <div class="header-left">
+                    <button class="mobile-menu-toggle" id="mobileMenuToggle">
+                        <i class="fas fa-bars"></i>
+                    </button>
+                    <h1 class="section-title">
+                        <i class="fas fa-map-marker-alt"></i>
+                        Definir Local do Questionário
+                    </h1>
+                </div>
+            </header>
+            
+            <div class="section-content">
+                <div class="definir-local-layout">
+                    
+                    <!-- Coluna Esquerda: Formulário e Informações -->
+                    <div class="definir-local-form-section">
+                        
+                        <!-- Card: Vincular Questionário ao Local -->
+                        <div class="questionario-card">
+                            <div class="card-header">
+                                <h3 class="card-title">
+                                    <i class="fas fa-link"></i>
+                                    Vincular Questionário ao Local
+                                </h3>
+                            </div>
+                            <form id="formDefinirLocal" class="questionario-form">
+                                <div class="form-group">
+                                    <label for="selectQuestionario" class="form-label">
+                                        <i class="fas fa-clipboard-list"></i>
+                                        Questionário
+                                    </label>
+                                    <select id="selectQuestionario" class="form-select" required>
+                                        <option value="">Selecione o questionário</option>
+                                    </select>
+                                </div>
+
+                                <div class="form-group">
+                                    <label for="selectEstado" class="form-label">
+                                        <i class="fas fa-map"></i>
+                                        Estado
+                                    </label>
+                                    <select id="selectEstado" class="form-select" required>
+                                        <option value="">Selecione o estado</option>
+                                    </select>
+                                </div>
+
+                                <div class="form-group">
+                                    <label for="selectMunicipio" class="form-label">
+                                        <i class="fas fa-building"></i>
+                                        Município
+                                    </label>
+                                    <select id="selectMunicipio" class="form-select" required>
+                                        <option value="">Selecione o município</option>
+                                    </select>
+                                    <small class="form-help">Selecione um estado primeiro</small>
+                                </div>
+
+                                <div class="form-group">
+                                    <label for="statusVinculo" class="form-label">
+                                        <i class="fas fa-toggle-on"></i>
+                                        Status
+                                    </label>
+                                    <select id="statusVinculo" class="form-select" required>
+                                        <option value="ativo">Ativo</option>
+                                        <option value="inativo">Inativo</option>
+                                    </select>
+                                </div>
+
+                                <button type="submit" class="btn btn-primary btn-block">
+                                    <i class="fas fa-plus"></i>
+                                    Criar Vínculo
+                                </button>
+                            </form>
+                        </div>
+
+                       
+                    </div>
+
+                    <!-- Coluna Direita: Lista de Vínculos -->
+                    <div class="definir-local-list-section">
+                        
+                        <!-- Card: Vínculos Cadastrados -->
+                        <div class="questionario-card">
+                            <div class="card-header">
+                                <h3 class="card-title">
+                                    <i class="fas fa-list"></i>
+                                    Vínculos Cadastrados
+                                </h3>
+                                <div class="card-actions">
+                                    <div class="search-group">
+                                        <input 
+                                            type="text" 
+                                            id="buscarVinculos" 
+                                            class="form-input search-input" 
+                                            placeholder="Buscar vínculos..."
+                                        >
+                                        <i class="fas fa-search search-icon"></i>
+                                    </div>
+                                    <select id="filtroStatus" class="form-select">
+                                        <option value="">Todos os Status</option>
+                                        <option value="ativo">Ativos</option>
+                                        <option value="inativo">Inativos</option>
+                                    </select>
+                                </div>
+                            </div>
+                            
+                            <div class="vinculos-container">
+                                
+                                <!-- Tabela de Vínculos -->
+                                <div class="vinculos-table-container">
+                                    <table class="vinculos-table" id="tabelaVinculos">
+                                        <thead>
+                                            <tr>
+                                                <th>QUESTIONÁRIO</th>
+                                                <th>ESTADO</th>
+                                                <th>MUNICÍPIO</th>
+                                                <th>STATUS</th>
+                                                <th>DATA</th>
+                                                <th>AÇÕES</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody id="corpoTabelaVinculos">
+                                            <!-- Conteúdo será preenchido via JavaScript -->
+                                        </tbody>
+                                    </table>
+                                </div>
+                                
+                                <!-- Template para linha da tabela -->
+                                <template id="templateVinculoRow">
+                                    <tr class="vinculo-row">
+                                        <td class="vinculo-questionario"></td>
+                                        <td class="vinculo-estado"></td>
+                                        <td class="vinculo-municipio"></td>
+                                        <td class="vinculo-status">
+                                            <span class="status-badge"></span>
+                                        </td>
+                                        <td class="vinculo-data"></td>
+                                        <td class="vinculo-acoes">
+                                            <button class="btn-icon btn-edit" title="Editar">
+                                                <i class="fas fa-edit"></i>
+                                            </button>
+                                            <button class="btn-icon btn-toggle" title="Ativar/Desativar">
+                                                <i class="fas fa-power-off"></i>
+                                            </button>
+                                            <button class="btn-icon btn-delete" title="Excluir">
+                                                <i class="fas fa-trash"></i>
+                                            </button>
+                                        </td>
+                                    </tr>
+                                </template>
+
+                                <!-- Mensagem vazia -->
+                                <div class="empty-message" id="emptyVinculos">
+                                    <div class="empty-icon">
+                                        <i class="fas fa-link"></i>
+                                    </div>
+                                    <h3>Nenhum vínculo cadastrado</h3>
+                                    <p>Crie o primeiro vínculo entre questionário e local</p>
+                                </div>
+                                
+                            </div>
+                        </div>
+
+                    </div>
+
+                </div>
+            </div>
+        </section>
+
+        <!-- ==================== SEÇÃO: QUESTIONÁRIOS ==================== -->
+        <section class="content-section" id="section-questionarios">
+            <header class="section-header">
+                <div class="header-left">
+                    <h1 class="section-title">Questionários Respondidos</h1>
+                    <span class="badge badge-info" id="totalRespostasCount">0 respostas</span>
+                </div>
+                <div class="header-right">
+                    <div class="header-controls">
+                        <div class="control-group">
+                            <select id="filtroQuestionarioRespostas" class="form-select">
+                                <option value="">Todos os Questionários</option>
+                            </select>
+                            <select id="filtroEstadoRespostas" class="form-select">
+                                <option value="">Todos os Estados</option>
+                            </select>
+                            <select id="sortOrderRespostas" class="form-select">
+                                <option value="newest">Mais recentes</option>
+                                <option value="oldest">Mais antigos</option>
+                            </select>
+                        </div>
+                        <div class="control-group">
+                            <button class="btn btn-export" id="exportRespostasPDFBtn">
+                                <i class="fas fa-file-pdf"></i>
+                                <span>Exportar PDF</span>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </header>
+
+            <div class="section-content">
+                <!-- Loading State -->
+                <div class="loading-state" id="loadingRespostas" style="display: none;">
+                    <div class="loading-spinner"></div>
+                    <p>Carregando respostas...</p>
+                </div>
+
+                <!-- Empty State -->
+                <div class="empty-message" id="emptyRespostas" style="display: none;">
+                    <i class="fas fa-inbox"></i>
+                    <p>Nenhuma resposta encontrada</p>
+                </div>
+
+                <!-- Grid de Respostas -->
+                <div class="respostas-grid" id="respostasGrid">
+                    <!-- Cards via template -->
+                </div>
+            </div>
+        </section>
+
+        <!-- ==================== SEÇÃO: ADICIONAR LOCAIS ==================== -->
+        <section class="content-section" id="section-locais">
+            <header class="section-header">
+                <h1 class="section-title">Adicionar Locais</h1>
+            </header>
+            <div class="section-content">
+                
+                <div class="questionario-layout">
+                    <!-- Coluna Esquerda: Formulários -->
+                    <div class="questionario-form-section">
+                        
+                        <!-- Adicionar Estado -->
+                        <div class="questionario-card">
+                            <div class="card-header">
+                                <h3 class="card-title">
+                                    <i class="fas fa-map"></i>
+                                    Adicionar Estado
+                                </h3>
+                            </div>
+                            <form id="formAdicionarEstado" class="questionario-form">
+                                <div class="form-group">
+                                    <label for="nomeEstado" class="form-label">Nome do Estado</label>
+                                    <input 
+                                        type="text" 
+                                        id="nomeEstado" 
+                                        class="form-input" 
+                                        placeholder="Digite o nome do estado"
+                                        required
+                                    >
+                                </div>
+                                <button type="submit" class="btn btn-primary btn-block">
+                                    <i class="fas fa-plus"></i>
+                                    Adicionar Estado
+                                </button>
+                            </form>
+                        </div>
+
+                        <!-- Adicionar Município -->
+                        <div class="questionario-card">
+                            <div class="card-header">
+                                <h3 class="card-title">
+                                    <i class="fas fa-building"></i>
+                                    Adicionar Município
+                                </h3>
+                            </div>
+                            <form id="formAdicionarMunicipio" class="questionario-form">
+                                <div class="form-group">
+                                    <label for="estadoMunicipio" class="form-label">Estado</label>
+                                    <select id="estadoMunicipio" class="form-select" required>
+                                        <option value="">Selecione o estado</option>
+                                    </select>
+                                </div>
+                                <div class="form-group">
+                                    <label for="nomeMunicipio" class="form-label">Nome do Município</label>
+                                    <input 
+                                        type="text" 
+                                        id="nomeMunicipio" 
+                                        class="form-input" 
+                                        placeholder="Digite o nome do município"
+                                        required
+                                    >
+                                </div>
+                                <button type="submit" class="btn btn-primary btn-block">
+                                    <i class="fas fa-plus"></i>
+                                    Adicionar Município
+                                </button>
+                            </form>
+                        </div>
+
+                    </div>
+
+                    <!-- Coluna Direita: Listas -->
+                    <div class="questionario-list-section">
+                        
+                        <!-- Estados Criados -->
+                        <div class="questionario-card">
+                            <div class="card-header">
+                                <h3 class="card-title">Estados Cadastrados</h3>
+                            </div>
+                            <div class="questionarios-container">
+                                <div class="questionarios-list" id="listaEstados">
+                                    <!-- Lista será preenchida via JavaScript -->
+                                </div>
+                                
+                                <!-- Template para item de estado -->
+                                <template id="templateEstadoItem">
+                                    <div class="questionario-item estado-item">
+                                        <div class="questionario-info">
+                                            <h4 class="estado-nome"></h4>
+                                            <span class="estado-municipios"></span>
+                                        </div>
+                                        <div class="questionario-actions">
+                                            <button class="btn-icon btn-edit" title="Editar">
+                                                <i class="fas fa-edit"></i>
+                                            </button>
+                                            <button class="btn-icon btn-delete" title="Excluir">
+                                                <i class="fas fa-trash"></i>
+                                            </button>
+                                        </div>
+                                    </div>
+                                </template>
+
+                                <!-- Mensagem vazia -->
+                                <div class="empty-message" id="emptyEstados">
+                                    <i class="fas fa-map"></i>
+                                    <p>Nenhum estado cadastrado</p>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Municípios Cadastrados -->
+                        <div class="questionario-card">
+                            <div class="card-header">
+                                <h3 class="card-title">Municípios Cadastrados</h3>
+                            </div>
+                            <div class="questionarios-container">
+                                <div class="questionarios-list" id="listaMunicipios">
+                                    <!-- Lista será preenchida via JavaScript -->
+                                </div>
+
+                                <!-- Template para item de município -->
+                                <template id="templateMunicipioItem">
+                                    <div class="questionario-item municipio-item">
+                                        <div class="questionario-info">
+                                            <h4 class="municipio-nome"></h4>
+                                            <span class="municipio-estado"></span>
+                                        </div>
+                                        <div class="questionario-actions">
+                                            <button class="btn-icon btn-edit" title="Editar">
+                                                <i class="fas fa-edit"></i>
+                                            </button>
+                                            <button class="btn-icon btn-delete" title="Excluir">
+                                                <i class="fas fa-trash"></i>
+                                            </button>
+                                        </div>
+                                    </div>
+                                </template>
+
+                                <!-- Mensagem vazia -->
+                                <div class="empty-message" id="emptyMunicipios">
+                                    <i class="fas fa-building"></i>
+                                    <p>Nenhum município cadastrado</p>
+                                </div>
+                            </div>
+                        </div>
+
+                    </div>
+
+                </div>
+            </div>
+        </section>
+
+        <!-- ==================== SEÇÃO: CRIAR QUESTIONÁRIO ==================== -->
+        <section class="content-section" id="section-criar-questionario">
+            <header class="section-header">
+                <h1 class="section-title">Criar Questionários</h1>
+            </header>
+            <div class="section-content">
+                
+                <div class="questionario-layout">
+                    <!-- Coluna Esquerda: Formulários -->
+                    <div class="questionario-form-section">
+                        
+                        <!-- Criar Questionário -->
+                        <div class="questionario-card">
+                            <div class="card-header">
+                                <h3 class="card-title">
+                                    <i class="fas fa-plus-circle"></i>
+                                    Novo Questionário
+                                </h3>
+                            </div>
+                            <form id="formCriarQuestionario" class="questionario-form">
+                                <div class="form-group">
+                                    <label for="nomeQuestionario" class="form-label">Nome do Questionário</label>
+                                    <input 
+                                        type="text" 
+                                        id="nomeQuestionario" 
+                                        class="form-input" 
+                                        placeholder="Digite o nome do questionário"
+                                        required
+                                    >
+                                </div>
+                                <button type="submit" class="btn btn-primary btn-block">
+                                    <i class="fas fa-plus"></i>
+                                    Criar Questionário
+                                </button>
+                            </form>
+                        </div>
+
+                        <!-- Adicionar Pergunta -->
+                        <div class="questionario-card" id="cardAdicionarPergunta" style="display: none;">
+                            <div class="card-header">
+                                <h3 class="card-title">
+                                    <i class="fas fa-question-circle"></i>
+                                    Adicionar Pergunta
+                                </h3>
+                                <span class="badge" id="badgeQuestionarioAtual"></span>
+                            </div>
+                            <form id="formAdicionarPergunta" class="questionario-form">
+                                <div class="form-group">
+                                    <label for="textoPergunta" class="form-label">Texto da Pergunta</label>
+                                    <textarea 
+                                        id="textoPergunta" 
+                                        class="form-textarea" 
+                                        placeholder="Digite a pergunta"
+                                        rows="3"
+                                        required
+                                    ></textarea>
+                                </div>
+
+                                <div class="form-group">
+                                    <label for="tipoPergunta" class="form-label">Tipo de Resposta</label>
+                                    <select id="tipoPergunta" class="form-select" required>
+                                        <option value="">Selecione o tipo</option>
+                                        <option value="escala">Escala</option>
+                                        <option value="simnao">Sim/Não</option>
+                                        <option value="texto">Texto</option>
+                                    </select>
+                                </div>
+
+                                <div class="form-group" id="grupoEscala" style="display: none;">
+                                    <label for="valorEscala" class="form-label">Escala</label>
+                                    <select id="valorEscala" class="form-select">
+                                        <option value="5">1 a 5</option>
+                                        <option value="10">1 a 10</option>
+                                    </select>
+                                </div>
+
+                                <button type="submit" class="btn btn-primary btn-block">
+                                    <i class="fas fa-plus"></i>
+                                    Adicionar Pergunta
+                                </button>
+                            </form>
+                        </div>
+
+                    </div>
+
+                    <!-- Coluna Direita: Listas -->
+                    <div class="questionario-list-section">
+                        
+                        <!-- Questionários Criados -->
+                        <div class="questionario-card">
+                            <div class="card-header">
+                                <h3 class="card-title">Questionários Criados</h3>
+                            </div>
+                            <div class="questionarios-container">
+                                <div class="questionarios-list" id="listaQuestionarios">
+                                    <!-- Lista será preenchida via JavaScript -->
+                                </div>
+                                
+                                <!-- Template para item de questionário -->
+                                <template id="templateQuestionarioItem">
+                                    <div class="questionario-item">
+                                        <div class="questionario-info">
+                                            <h4 class="questionario-nome"></h4>
+                                            <span class="questionario-total"></span>
+                                        </div>
+                                        <div class="questionario-actions">
+                                            <button class="btn-icon btn-select" title="Selecionar">
+                                                <i class="fas fa-hand-pointer"></i>
+                                            </button>
+                                            <button class="btn-icon btn-edit" title="Editar">
+                                                <i class="fas fa-edit"></i>
+                                            </button>
+                                            <button class="btn-icon btn-delete" title="Excluir">
+                                                <i class="fas fa-trash"></i>
+                                            </button>
+                                        </div>
+                                    </div>
+                                </template>
+
+                                <!-- Mensagem vazia -->
+                                <div class="empty-message" id="emptyQuestionarios">
+                                    <i class="fas fa-inbox"></i>
+                                    <p>Nenhum questionário criado</p>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Perguntas do Questionário Selecionado -->
+                        <div class="questionario-card" id="cardPerguntas" style="display: none;">
+                            <div class="card-header">
+                                <h3 class="card-title">Perguntas</h3>
+                                <span class="badge" id="badgeNomeQuestionario"></span>
+                            </div>
+                            <div class="perguntas-container">
+                                <div class="perguntas-list" id="listaPerguntas">
+                                    <!-- Lista será preenchida via JavaScript -->
+                                </div>
+
+                                <!-- Template para item de pergunta -->
+                                <template id="templatePerguntaItem">
+                                    <div class="pergunta-item">
+                                        <div class="pergunta-header">
+                                            <span class="pergunta-numero"></span>
+                                            <span class="badge pergunta-tipo"></span>
+                                        </div>
+                                        <div class="pergunta-texto"></div>
+                                        <div class="pergunta-actions">
+                                            <button class="btn-icon btn-edit" title="Editar">
+                                                <i class="fas fa-edit"></i>
+                                            </button>
+                                            <button class="btn-icon btn-delete" title="Excluir">
+                                                <i class="fas fa-trash"></i>
+                                            </button>
+                                        </div>
+                                    </div>
+                                </template>
+
+                                <!-- Mensagem vazia -->
+                                <div class="empty-message" id="emptyPerguntas">
+                                    <i class="fas fa-question"></i>
+                                    <p>Nenhuma pergunta adicionada</p>
+                                </div>
+                            </div>
+                        </div>
+
+                    </div>
+
+                </div>
+            </div>
+        </section>
+
+        <!-- ==================== SEÇÃO: SUGESTÕES DE MELHORIAS ==================== -->
+        <section class="content-section" id="section-sugestoes">
+            <header class="section-header">
+                <div class="header-left">
+                    <h1 class="section-title">Sugestões de Melhorias</h1>
+                    <span class="badge badge-info" id="totalSugestoesCount">0 sugestões</span>
+                </div>
+                <div class="header-right">
+                    <div class="header-controls">
+                        <div class="control-group">
+                            <select id="filtroQuestionarioSugestoes" class="form-select">
+                                <option value="">Todos os Questionários</option>
+                            </select>
+                            <select id="sortOrderSugestoes" class="form-select">
+                                <option value="newest">Mais recentes</option>
+                                <option value="oldest">Mais antigos</option>
+                            </select>
+                        </div>
+                        <div class="control-group">
+                            <button class="btn btn-export" id="exportSugestoesPDFBtn">
+                                <i class="fas fa-file-pdf"></i>
+                                <span>Exportar PDF</span>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </header>
+            
+            <div class="section-content">
+                <!-- Loading State -->
+                <div class="loading-state" id="loadingSugestoes" style="display: none;">
+                    <div class="loading-spinner"></div>
+                    <p>Carregando sugestões...</p>
+                </div>
+
+                <!-- Empty State -->
+                <div class="empty-message" id="emptySugestoes" style="display: none;">
+                    <i class="fas fa-comments"></i>
+                    <p>Nenhuma sugestão encontrada</p>
+                </div>
+
+                <!-- Grid de Sugestões -->
+                <div class="sugestoes-grid" id="sugestoesGrid">
+                    <!-- Cards via template -->
+                </div>
+            </div>
+        </section>
+
+    </div>
+
+    <!-- ==================== MODAL: DETALHES DA RESPOSTA ==================== -->
+    <div class="modal hidden" id="modalDetalhesResposta">
+        <div class="modal-overlay"></div>
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h2 class="modal-title">
+                        <i class="fas fa-clipboard-check"></i>
+                        Detalhes da Resposta
+                    </h2>
+                    <button class="modal-close" id="closeModalDetalhes">
+                        <i class="fas fa-times"></i>
+                    </button>
+                </div>
+
+                <div class="modal-body">
+                    <!-- Informações do Respondente -->
+                    <div class="respondente-info-card">
+                        <div class="info-row">
+                            <div class="info-item">
+                                <label class="info-label">
+                                    <i class="fas fa-user"></i>
+                                    Nome
+                                </label>
+                                <span class="info-value" id="modalRespondenteNome"></span>
+                            </div>
+                            <div class="info-item">
+                                <label class="info-label">
+                                    <i class="fas fa-briefcase"></i>
+                                    Cargo
+                                </label>
+                                <span class="info-value" id="modalRespondenteCargo"></span>
+                            </div>
+                        </div>
+                        <div class="info-row">
+                            <div class="info-item">
+                                <label class="info-label">
+                                    <i class="fas fa-map-marker-alt"></i>
+                                    Localização
+                                </label>
+                                <span class="info-value" id="modalRespondenteLocal"></span>
+                            </div>
+                            <div class="info-item">
+                                <label class="info-label">
+                                    <i class="fas fa-calendar"></i>
+                                    Data da Resposta
+                                </label>
+                                <span class="info-value" id="modalRespostaData"></span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Respostas -->
+                    <div class="respostas-detalhes-container">
+                        <h3 class="section-subtitle">
+                            <i class="fas fa-list-alt"></i>
+                            Respostas do Questionário
+                        </h3>
+                        <div class="respostas-detalhes-list" id="modalRespostasList">
+                            <!-- Respostas via template -->
+                        </div>
+                    </div>
+                </div>
+
+                <div class="modal-footer">
+                    <button class="btn btn-secondary" id="btnFecharModal">
+                        <i class="fas fa-times"></i>
+                        Fechar
+                    </button>
+                    <button class="btn btn-primary" id="btnDownloadRespostaPDF">
+                        <i class="fas fa-file-pdf"></i>
+                        Download PDF
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ==================== TEMPLATES ==================== -->
+    
+    <!-- Template: Card de Resposta (Grid) -->
+    <template id="template-resposta-card">
+        <div class="resposta-card">
+            <div class="resposta-header">
+                <div class="respondente-avatar">
+                    <i class="fas fa-user-circle"></i>
+                </div>
+                <div class="respondente-info">
+                    <h4 class="respondente-nome"></h4>
+                    <span class="respondente-cargo"></span>
+                </div>
+            </div>
+            <div class="resposta-body">
+                <div class="resposta-meta">
+                    <div class="meta-item">
+                        <i class="fas fa-map-marker-alt"></i>
+                        <span class="local-text"></span>
+                    </div>
+                    <div class="meta-item">
+                        <i class="fas fa-calendar"></i>
+                        <span class="data-text"></span>
+                    </div>
+                    <div class="meta-item">
+                        <i class="fas fa-clipboard-list"></i>
+                        <span class="questionario-text"></span>
+                    </div>
+                </div>
+            </div>
+            <div class="resposta-footer">
+                <button class="btn btn-sm btn-primary btn-ver-detalhes">
+                    <i class="fas fa-eye"></i>
+                    Ver Detalhes
+                </button>
+            </div>
+        </div>
+    </template>
+
+    <!-- Template: Resposta Individual (Modal) -->
+    <template id="template-resposta-detalhe">
+        <div class="resposta-detalhe-item">
+            <div class="pergunta-header">
+                <span class="pergunta-numero"></span>
+                <span class="badge pergunta-tipo-badge"></span>
+            </div>
+            <h5 class="pergunta-texto"></h5>
+            <div class="resposta-valor"></div>
+        </div>
+    </template>
+
+    <!-- Template: Card de Sugestão -->
+    <template id="template-sugestao-card">
+        <div class="sugestao-card">
+            <div class="sugestao-header">
+                <div class="autor-info">
+                    <div class="autor-avatar">
+                        <i class="fas fa-user-circle"></i>
+                    </div>
+                    <div class="autor-dados">
+                        <h4 class="autor-nome"></h4>
+                        <span class="autor-cargo"></span>
+                    </div>
+                </div>
+                <div class="sugestao-meta">
+                    <span class="meta-item">
+                        <i class="fas fa-map-marker-alt"></i>
+                        <span class="local-text"></span>
+                    </span>
+                    <span class="meta-item">
+                        <i class="fas fa-calendar"></i>
+                        <span class="data-text"></span>
+                    </span>
+                </div>
+            </div>
+            <div class="sugestao-body">
+                <h5 class="pergunta-titulo"></h5>
+                <p class="sugestao-texto"></p>
+            </div>
+            <div class="sugestao-footer">
+                <span class="questionario-nome">
+                    <i class="fas fa-clipboard-list"></i>
+                    <span class="nome-text"></span>
+                </span>
+            </div>
+        </div>
+    </template>
+
+    <!-- Template: Item de Vínculo -->
+    <template id="template-vinculo-item">
+        <div class="vinculo-item">
+            <div class="vinculo-info">
+                <h4 class="vinculo-questionario"></h4>
+                <p class="vinculo-local">
+                    <i class="fas fa-map-marker-alt"></i>
+                    <span class="vinculo-municipio"></span>, <span class="vinculo-estado"></span>
+                </p>
+            </div>
+            <div class="vinculo-actions">
+                <button class="btn-icon btn-delete-vinculo" title="Remover vínculo">
+                    <i class="fas fa-trash"></i>
+                </button>
+            </div>
+        </div>
+    </template>
+
+    <!-- ==================== SCRIPTS ==================== -->
+    <!-- Chart.js para gráficos -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/3.9.1/chart.min.js"></script>
+    
+    <!-- SweetAlert2 para alertas customizados -->
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    
+    <!-- Scripts da aplicação -->
+    <script src="js/app.js"></script>
+  
+   
+</body>
+</html>
