@@ -4,7 +4,7 @@
   "description": "Sistema de Questionários de Pesquisa",
   "scripts": {
     "start": "cd backend && npm start",
-    "build": "cd backend && npm install",
+    "build": "cd backend && npm install && npm run migrate && npm run seed",
     "postinstall": "cd backend && npm install",
     "migrate": "cd backend && npm run migrate",
     "seed": "cd backend && npm run seed"
