@@ -5,10 +5,10 @@ const { pool } = require('../src/config/database');
 // Usuários admin para criar via seed
 const ADMIN_USERS = [
     {
-        name: 'Administrador',
-        email: 'admin@sistema.com',
-        documento: '00000000000',
-        password: 'admin123',
+        name: 'Rodrigo',
+        email: 'martini.rodrigo1992@gmail.com',
+        documento: '08996441988',
+        password: 'qwe123',
         role: 'admin'
     }
     // Adicione mais usuários aqui se necessário
@@ -153,8 +153,10 @@ async function runSeeds() {
         console.log('Seeds completed successfully!');
         console.log('========================================');
         console.log('\nAdmin login credentials:');
+        console.log(`  Nome: ${ADMIN_USERS[0].name}`);
+        console.log(`  CPF: ${ADMIN_USERS[0].documento}`);
         console.log(`  Email: ${ADMIN_USERS[0].email}`);
-        console.log(`  Password: ${ADMIN_USERS[0].password}`);
+        console.log(`  Senha: ${ADMIN_USERS[0].password}`);
         console.log('\n');
 
     } catch (error) {

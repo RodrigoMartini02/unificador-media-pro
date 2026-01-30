@@ -3,8 +3,10 @@ const authService = require('../services/authService');
 const authController = {
     async login(req, res, next) {
         try {
-            const { email, password } = req.body;
-            const result = await authService.login(email, password);
+            const { documento, email, password } = req.body;
+            // Aceita documento (CPF/CNPJ) ou email como identificador
+            const identifier = documento || email;
+            const result = await authService.login(identifier, password);
             res.json(result);
         } catch (error) {
             next(error);

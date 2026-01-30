@@ -24,7 +24,7 @@ class AuthService {
         }
 
         const token = jwt.sign(
-            { id: user.id, cpf: user.cpf, role: user.role },
+            { id: user.id, documento: user.documento, role: user.role },
             jwtConfig.secret,
             { expiresIn: jwtConfig.expiresIn }
         );
@@ -34,7 +34,7 @@ class AuthService {
             user: {
                 id: user.id,
                 name: user.name,
-                cpf: user.cpf,
+                documento: user.documento,
                 role: user.role
             }
         };

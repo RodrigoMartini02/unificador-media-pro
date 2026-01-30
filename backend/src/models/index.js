@@ -7,6 +7,11 @@ const UserModel = {
         return result.rows[0];
     },
 
+    async findByCpf(cpf) {
+        const result = await query('SELECT * FROM users WHERE documento = $1', [cpf]);
+        return result.rows[0];
+    },
+
     async findById(id) {
         const result = await query('SELECT id, name, email, documento, role, created_at FROM users WHERE id = $1', [id]);
         return result.rows[0];
