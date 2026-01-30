@@ -13,9 +13,10 @@ const exportController = require('../controllers/exportController');
 const router = express.Router();
 
 // ==================== AUTH ROUTES ====================
+// No seu arquivo de rotas, altere o bloco AUTH ROUTES:
 router.post('/auth/login', [
-    body('email').isEmail().withMessage('Invalid email'),
-    body('password').notEmpty().withMessage('Password is required'),
+    body('cpf').notEmpty().withMessage('CPF é obrigatório'), // Alterado de email para cpf
+    body('password').notEmpty().withMessage('Senha é obrigatória'),
     validate
 ], authController.login);
 

@@ -4,21 +4,27 @@ const jwtConfig = require('../config/jwt');
 const { UserModel } = require('../models');
 
 class AuthService {
-    async login(email, password) {
-        const user = await UserModel.findByEmail(email);
-
+    async login(identifier, password) {
+        // Agora buscamos pelo CPF ou E-mail (flexibilidade)
+        let user = await UserModel.findByCpf(identifier);
+        
         if (!user) {
-            throw { statusCode: 401, message: 'Invalid credentials' };
+            user = await UserModel.findByEmail(identifier);
         }
 
+        if (!user) {
+            throw { statusCode: 401, message: 'Usuário não encontrado' };
+        }
+
+        // Compara a senha digitada (ex: 0000) com o hash no banco
         const isValidPassword = await bcrypt.compare(password, user.password_hash);
 
         if (!isValidPassword) {
-            throw { statusCode: 401, message: 'Invalid credentials' };
+            throw { statusCode: 401, message: 'Senha incorreta' };
         }
 
         const token = jwt.sign(
-            { id: user.id, email: user.email, role: user.role },
+            { id: user.id, cpf: user.cpf, role: user.role },
             jwtConfig.secret,
             { expiresIn: jwtConfig.expiresIn }
         );
@@ -28,7 +34,7 @@ class AuthService {
             user: {
                 id: user.id,
                 name: user.name,
-                email: user.email,
+                cpf: user.cpf,
                 role: user.role
             }
         };
