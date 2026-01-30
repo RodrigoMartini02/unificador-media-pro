@@ -72,7 +72,22 @@ router.delete('/responses/:id', authMiddleware, responseController.delete);
 router.post('/responses/bulk-delete', authMiddleware, responseController.bulkDelete);
 
 // ==================== PUBLIC ROUTES (sem autenticação) ====================
-// Obter questionário ativo para responder
+// Obter questionário ativo (novo endpoint unificado)
+router.get('/public/questionnaire/active', async (req, res, next) => {
+    try {
+        const { QuestionnaireModel } = require('../models');
+        const questionnaires = await QuestionnaireModel.findAll(true);
+        if (questionnaires.length === 0) {
+            return res.status(404).json({ error: 'No active questionnaire found' });
+        }
+        const questionnaire = await QuestionnaireModel.findWithQuestions(questionnaires[0].id);
+        res.json(questionnaire);
+    } catch (error) {
+        next(error);
+    }
+});
+
+// Obter questionário ativo para responder (legacy - por locationId)
 router.get('/public/questionnaire/:locationId', async (req, res, next) => {
     try {
         const { QuestionnaireModel } = require('../models');

@@ -35,13 +35,14 @@
             </div>
         </div>
 
-        <!-- Seção de Seleção de Local -->
-        <div class="location-section" id="locationSection">
+        <!-- Seção de Identificação e Local Unificada -->
+        <div class="identification-section" id="identificationSection">
             <div class="question">
-                <h3><i class="fas fa-map-marker-alt"></i> Selecione sua Localização</h3>
-                <p class="location-description">Escolha o estado e município onde você está respondendo a pesquisa.</p>
+                <h3><i class="fas fa-map-marker-alt"></i> Localização e Identificação</h3>
+                <p class="identification-description">Selecione sua localização e escolha se deseja se identificar.</p>
 
-                <div class="location-fields">
+                <!-- Seleção de Local -->
+                <div class="location-row">
                     <div class="field-group">
                         <label for="selectEstado">Estado <span class="required">*</span></label>
                         <select id="selectEstado" name="estado" required>
@@ -56,20 +57,7 @@
                     </div>
                 </div>
 
-                <div class="location-actions">
-                    <button id="confirmLocationBtn" class="btn btn-primary disabled" disabled>
-                        <i class="fas fa-check"></i> Confirmar Localização
-                    </button>
-                </div>
-            </div>
-        </div>
-
-        <!-- Seção de Identificação -->
-        <div class="identification-section hidden" id="identificationSection">
-            <div class="question">
-                <h3><i class="fas fa-user"></i> Identificação</h3>
-                <p class="identification-description">Você pode se identificar ou responder anonimamente.</p>
-
+                <!-- Opções de Identificação -->
                 <div class="identification-options">
                     <label class="radio-card">
                         <input type="radio" id="identifyYes" name="identify" value="yes">
@@ -100,7 +88,7 @@
 
                 <div class="start-questionnaire-container">
                     <button id="startQuestionnaireBtn" class="btn btn-primary disabled" disabled>
-                        <i class="fas fa-play"></i> Iniciar Questionário
+                        <i class="fas fa-play"></i> Continuar para o Questionário
                     </button>
                 </div>
             </div>

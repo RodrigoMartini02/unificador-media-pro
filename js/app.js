@@ -5,6 +5,30 @@
 
 // ==================== CONFIGURAÇÃO ====================
 const API_URL = '/api';
+const IBGE_API_URL = 'https://servicodados.ibge.gov.br/api/v1/localidades';
+
+// ==================== API DO IBGE ====================
+const ibgeApi = {
+    async getEstados() {
+        try {
+            const response = await fetch(`${IBGE_API_URL}/estados?orderBy=nome`);
+            return await response.json();
+        } catch (error) {
+            console.error('Erro ao buscar estados do IBGE:', error);
+            return [];
+        }
+    },
+
+    async getMunicipios(ufId) {
+        try {
+            const response = await fetch(`${IBGE_API_URL}/estados/${ufId}/municipios?orderBy=nome`);
+            return await response.json();
+        } catch (error) {
+            console.error('Erro ao buscar municípios do IBGE:', error);
+            return [];
+        }
+    }
+};
 
 // ==================== CLIENTE API ====================
 const api = {
@@ -332,6 +356,182 @@ class DashboardManager {
     }
 }
 
+// ==================== GERENCIADOR DE LOCAIS ====================
+class LocalManager {
+    constructor() {
+        this.estados = [];
+        this.selectedUF = null;
+    }
+
+    async init() {
+        await this.loadEstados();
+        this.setupEventListeners();
+        await this.loadLocaisCadastrados();
+    }
+
+    async loadEstados() {
+        this.estados = await ibgeApi.getEstados();
+        this.populateEstadoSelect();
+    }
+
+    populateEstadoSelect() {
+        const select = document.getElementById('selectEstado');
+        if (!select) return;
+
+        select.innerHTML = '<option value="">Selecione o estado</option>' +
+            this.estados.map(e => `<option value="${e.id}" data-sigla="${e.sigla}" data-nome="${e.nome}">${e.nome}</option>`).join('');
+    }
+
+    setupEventListeners() {
+        // Mudança de estado - carregar municípios
+        const estadoSelect = document.getElementById('selectEstado');
+        if (estadoSelect) {
+            estadoSelect.addEventListener('change', async (e) => {
+                const option = e.target.selectedOptions[0];
+                this.selectedUF = {
+                    id: e.target.value,
+                    sigla: option?.dataset.sigla,
+                    nome: option?.dataset.nome
+                };
+                await this.loadMunicipios(e.target.value);
+            });
+        }
+
+        // Formulário de definir local
+        const form = document.getElementById('formDefinirLocal');
+        if (form) {
+            form.addEventListener('submit', async (e) => {
+                e.preventDefault();
+                await this.vincularLocal();
+            });
+        }
+    }
+
+    async loadMunicipios(ufId) {
+        const select = document.getElementById('selectMunicipio');
+        if (!select) return;
+
+        if (!ufId) {
+            select.innerHTML = '<option value="">Selecione o município</option>';
+            select.disabled = true;
+            return;
+        }
+
+        select.innerHTML = '<option value="">Carregando...</option>';
+        select.disabled = true;
+
+        const municipios = await ibgeApi.getMunicipios(ufId);
+
+        select.innerHTML = '<option value="">Selecione o município</option>' +
+            municipios.map(m => `<option value="${m.nome}">${m.nome}</option>`).join('');
+        select.disabled = false;
+    }
+
+    async vincularLocal() {
+        const questionarioSelect = document.getElementById('selectQuestionario');
+        const municipioSelect = document.getElementById('selectMunicipio');
+
+        const questionarioId = questionarioSelect?.value;
+        const municipio = municipioSelect?.value;
+        const estado = this.selectedUF?.nome;
+
+        if (!questionarioId || !municipio || !estado) {
+            Swal.fire('Atenção', 'Preencha todos os campos', 'warning');
+            return;
+        }
+
+        try {
+            // Criar o local no banco (se não existir) via API
+            const result = await api.post('/locations', {
+                state: estado,
+                municipality: municipio
+            });
+
+            if (result && !result.error) {
+                Swal.fire('Sucesso', 'Local vinculado com sucesso!', 'success');
+                await this.loadLocaisCadastrados();
+
+                // Limpar formulário
+                document.getElementById('formDefinirLocal')?.reset();
+                document.getElementById('selectMunicipio').innerHTML = '<option value="">Selecione o município</option>';
+                document.getElementById('selectMunicipio').disabled = true;
+            } else {
+                throw new Error(result?.error || 'Erro ao vincular');
+            }
+        } catch (error) {
+            console.error('Erro ao vincular local:', error);
+            if (error.message?.includes('duplicate') || error.message?.includes('unique')) {
+                Swal.fire('Info', 'Este local já está cadastrado', 'info');
+            } else {
+                Swal.fire('Erro', 'Não foi possível vincular o local', 'error');
+            }
+        }
+    }
+
+    async loadLocaisCadastrados() {
+        try {
+            const locations = await api.get('/locations');
+            this.renderLocaisCadastrados(locations || []);
+        } catch (error) {
+            console.error('Erro ao carregar locais:', error);
+        }
+    }
+
+    renderLocaisCadastrados(locations) {
+        const tbody = document.getElementById('corpoTabelaVinculos');
+        const emptyMsg = document.getElementById('emptyVinculos');
+
+        if (!tbody) return;
+
+        if (!locations.length) {
+            tbody.innerHTML = '';
+            if (emptyMsg) emptyMsg.style.display = 'block';
+            return;
+        }
+
+        if (emptyMsg) emptyMsg.style.display = 'none';
+
+        tbody.innerHTML = locations.map(loc => `
+            <tr class="vinculo-row">
+                <td class="vinculo-questionario">-</td>
+                <td class="vinculo-estado">${loc.state}</td>
+                <td class="vinculo-municipio">${loc.municipality}</td>
+                <td class="vinculo-status">
+                    <span class="status-badge status-ativo">Ativo</span>
+                </td>
+                <td class="vinculo-data">${new Date(loc.created_at).toLocaleDateString('pt-BR')}</td>
+                <td class="vinculo-acoes">
+                    <button class="btn-icon btn-delete" title="Excluir" onclick="localManager.deleteLocal(${loc.id})">
+                        <i class="fas fa-trash"></i>
+                    </button>
+                </td>
+            </tr>
+        `).join('');
+    }
+
+    async deleteLocal(id) {
+        const result = await Swal.fire({
+            title: 'Excluir local?',
+            text: 'Esta ação não pode ser desfeita',
+            icon: 'warning',
+            showCancelButton: true,
+            confirmButtonColor: '#EF4444',
+            cancelButtonText: 'Cancelar',
+            confirmButtonText: 'Sim, excluir'
+        });
+
+        if (result.isConfirmed) {
+            try {
+                await api.delete(`/locations/${id}`);
+                Swal.fire('Excluído!', 'Local removido com sucesso', 'success');
+                await this.loadLocaisCadastrados();
+            } catch (error) {
+                Swal.fire('Erro', 'Não foi possível excluir o local', 'error');
+            }
+        }
+    }
+}
+
 // ==================== NAVEGAÇÃO ====================
 class NavigationManager {
     constructor() {
@@ -368,6 +568,7 @@ class NavigationManager {
 // ==================== INICIALIZAÇÃO ====================
 let dashboard;
 let navigation;
+let localManager;
 
 document.addEventListener('DOMContentLoaded', async () => {
     // Verificar dependências
@@ -381,9 +582,14 @@ document.addEventListener('DOMContentLoaded', async () => {
     dashboard = new DashboardManager();
     await dashboard.init();
 
+    // Inicializar gerenciador de locais
+    localManager = new LocalManager();
+    await localManager.init();
+
     // Expor para uso global
     window.dashboard = dashboard;
     window.api = api;
+    window.localManager = localManager;
 
     console.log('Dashboard carregado!');
 });

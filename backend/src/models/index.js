@@ -62,7 +62,7 @@ const LocationModel = {
         return result.rows;
     },
 
-    async create({ state, municipality, created_by }) {
+    async create({ state, municipality, created_by = null }) {
         const result = await query(
             'INSERT INTO locations (state, municipality, created_by) VALUES ($1, $2, $3) RETURNING *',
             [state, municipality, created_by]

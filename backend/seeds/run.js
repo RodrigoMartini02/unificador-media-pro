@@ -14,20 +14,6 @@ const ADMIN_USERS = [
     // Adicione mais usuários aqui se necessário
 ];
 
-// Localizações de exemplo
-const SAMPLE_LOCATIONS = [
-    { state: 'São Paulo', municipality: 'São Paulo' },
-    { state: 'São Paulo', municipality: 'Campinas' },
-    { state: 'São Paulo', municipality: 'Santos' },
-    { state: 'Rio de Janeiro', municipality: 'Rio de Janeiro' },
-    { state: 'Rio de Janeiro', municipality: 'Niterói' },
-    { state: 'Minas Gerais', municipality: 'Belo Horizonte' },
-    { state: 'Minas Gerais', municipality: 'Uberlândia' },
-    { state: 'Paraná', municipality: 'Curitiba' },
-    { state: 'Rio Grande do Sul', municipality: 'Porto Alegre' },
-    { state: 'Bahia', municipality: 'Salvador' }
-];
-
 // Questionário de exemplo
 const SAMPLE_QUESTIONNAIRE = {
     name: 'Pesquisa de Satisfação Geral',
@@ -106,23 +92,7 @@ async function runSeeds() {
         const adminResult = await client.query('SELECT id FROM quest_users WHERE role = $1 LIMIT 1', ['admin']);
         const adminId = adminResult.rows[0]?.id;
 
-        // 2. Criar localizações de exemplo
-        console.log('\nCreating sample locations...');
-        for (const location of SAMPLE_LOCATIONS) {
-            try {
-                await client.query(
-                    `INSERT INTO locations (state, municipality, created_by)
-                     VALUES ($1, $2, $3)
-                     ON CONFLICT (state, municipality) DO NOTHING`,
-                    [location.state, location.municipality, adminId]
-                );
-                console.log(`  ✓ Location: ${location.state} - ${location.municipality}`);
-            } catch (err) {
-                console.log(`  - Location already exists: ${location.state} - ${location.municipality}`);
-            }
-        }
-
-        // 3. Criar questionário de exemplo
+        // 2. Criar questionário de exemplo
         console.log('\nCreating sample questionnaire...');
         const existingQ = await client.query('SELECT id FROM questionnaires WHERE name = $1', [SAMPLE_QUESTIONNAIRE.name]);
 

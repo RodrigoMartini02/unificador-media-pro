@@ -8,6 +8,22 @@
 // ================================================================
 
 const API_URL = '/api';
+const IBGE_API_URL = 'https://servicodados.ibge.gov.br/api/v1/localidades';
+
+// API do IBGE para estados e municípios
+const ibgeApi = {
+    async getEstados() {
+        const response = await fetch(`${IBGE_API_URL}/estados?orderBy=nome`);
+        if (!response.ok) throw new Error('Erro ao carregar estados');
+        return await response.json();
+    },
+
+    async getMunicipios(ufId) {
+        const response = await fetch(`${IBGE_API_URL}/estados/${ufId}/municipios?orderBy=nome`);
+        if (!response.ok) throw new Error('Erro ao carregar municípios');
+        return await response.json();
+    }
+};
 
 const publicApi = {
     async request(endpoint, options = {}) {
@@ -31,17 +47,8 @@ const publicApi = {
         }
     },
 
-    // Endpoints públicos
-    async getStates() {
-        return this.request('/public/locations/states');
-    },
-
-    async getMunicipalities(state) {
-        return this.request(`/public/locations/states/${encodeURIComponent(state)}/municipalities`);
-    },
-
-    async getQuestionnaire(locationId) {
-        return this.request(`/public/questionnaire/${locationId}`);
+    async getActiveQuestionnaire() {
+        return this.request('/public/questionnaire/active');
     },
 
     async submitResponse(data) {
@@ -68,8 +75,9 @@ class QuestionnaireManager {
         };
         this.selectedLocation = {
             state: '',
+            stateSigla: '',
             municipality: '',
-            locationId: null
+            municipalityId: null
         };
 
         this.init();
@@ -81,6 +89,7 @@ class QuestionnaireManager {
         this.setupEventListeners();
         this.setCurrentDate();
         await this.loadStates();
+        await this.loadActiveQuestionnaire();
     }
 
     setupEventListeners() {
@@ -96,12 +105,6 @@ class QuestionnaireManager {
             municipalitySelect.addEventListener('change', (e) => this.onMunicipalityChange(e.target.value));
         }
 
-        // Confirmar localização
-        const confirmLocationBtn = document.getElementById('confirmLocationBtn');
-        if (confirmLocationBtn) {
-            confirmLocationBtn.addEventListener('click', () => this.confirmLocation());
-        }
-
         // Identificação
         document.querySelectorAll('input[name="identify"]').forEach(radio => {
             radio.addEventListener('change', (e) => this.onIdentificationChoice(e.target.value));
@@ -112,10 +115,10 @@ class QuestionnaireManager {
         const positionField = document.getElementById('respondentPosition');
 
         if (nameField) {
-            nameField.addEventListener('input', () => this.validateIdentificationFields());
+            nameField.addEventListener('input', () => this.validateStartButton());
         }
         if (positionField) {
-            positionField.addEventListener('input', () => this.validateIdentificationFields());
+            positionField.addEventListener('input', () => this.validateStartButton());
         }
 
         // Botão iniciar questionário
@@ -158,13 +161,14 @@ class QuestionnaireManager {
 
         try {
             this.showLoading();
-            const states = await publicApi.getStates();
+            const estados = await ibgeApi.getEstados();
 
             stateSelect.innerHTML = '<option value="">Selecione o estado</option>';
-            states.forEach(state => {
+            estados.forEach(estado => {
                 const option = document.createElement('option');
-                option.value = state;
-                option.textContent = state;
+                option.value = estado.id;
+                option.textContent = estado.nome;
+                option.dataset.sigla = estado.sigla;
                 stateSelect.appendChild(option);
             });
         } catch (error) {
@@ -175,30 +179,51 @@ class QuestionnaireManager {
         }
     }
 
-    async onStateChange(state) {
-        const municipalitySelect = document.getElementById('selectMunicipio');
-        const confirmBtn = document.getElementById('confirmLocationBtn');
+    async loadActiveQuestionnaire() {
+        try {
+            const questionnaire = await publicApi.getActiveQuestionnaire();
 
-        if (!state) {
+            if (questionnaire && questionnaire.questions && questionnaire.questions.length > 0) {
+                this.currentQuestionnaire = questionnaire;
+
+                const subtitle = document.getElementById('questionnaireSubtitle');
+                if (subtitle) {
+                    subtitle.textContent = questionnaire.name || 'Pesquisa de Satisfação';
+                }
+            }
+        } catch (error) {
+            console.error('Erro ao carregar questionário ativo:', error);
+            // Não mostrar erro, apenas log - o questionário pode não existir
+        }
+    }
+
+    async onStateChange(ufId) {
+        const municipalitySelect = document.getElementById('selectMunicipio');
+        const stateSelect = document.getElementById('selectEstado');
+
+        if (!ufId) {
             municipalitySelect.innerHTML = '<option value="">Selecione o município</option>';
             municipalitySelect.disabled = true;
-            confirmBtn.disabled = true;
-            confirmBtn.classList.add('disabled');
+            this.selectedLocation.state = '';
+            this.selectedLocation.stateSigla = '';
+            this.validateStartButton();
             return;
         }
 
-        this.selectedLocation.state = state;
+        // Pegar a sigla do estado selecionado
+        const selectedOption = stateSelect.options[stateSelect.selectedIndex];
+        this.selectedLocation.state = selectedOption.textContent;
+        this.selectedLocation.stateSigla = selectedOption.dataset.sigla;
 
         try {
             this.showLoading();
-            const municipalities = await publicApi.getMunicipalities(state);
+            const municipios = await ibgeApi.getMunicipios(ufId);
 
             municipalitySelect.innerHTML = '<option value="">Selecione o município</option>';
-            municipalities.forEach(muni => {
+            municipios.forEach(municipio => {
                 const option = document.createElement('option');
-                option.value = muni.id;
-                option.textContent = muni.municipality;
-                option.dataset.name = muni.municipality;
+                option.value = municipio.id;
+                option.textContent = municipio.nome;
                 municipalitySelect.appendChild(option);
             });
 
@@ -211,117 +236,94 @@ class QuestionnaireManager {
         }
     }
 
-    onMunicipalityChange(locationId) {
-        const confirmBtn = document.getElementById('confirmLocationBtn');
+    onMunicipalityChange(municipioId) {
         const municipalitySelect = document.getElementById('selectMunicipio');
 
-        if (locationId) {
+        if (municipioId) {
             const selectedOption = municipalitySelect.options[municipalitySelect.selectedIndex];
-            this.selectedLocation.municipality = selectedOption.dataset.name || selectedOption.textContent;
-            this.selectedLocation.locationId = locationId;
-
-            confirmBtn.disabled = false;
-            confirmBtn.classList.remove('disabled');
-        } else {
-            confirmBtn.disabled = true;
-            confirmBtn.classList.add('disabled');
-        }
-    }
-
-    async confirmLocation() {
-        if (!this.selectedLocation.locationId) {
-            this.showError('Selecione estado e município');
-            return;
-        }
-
-        try {
-            this.showLoading();
-
-            // Buscar questionário para este local
-            const questionnaire = await publicApi.getQuestionnaire(this.selectedLocation.locationId);
-
-            if (!questionnaire || !questionnaire.questions || questionnaire.questions.length === 0) {
-                this.showError('Não há questionário disponível para este local.');
-                return;
-            }
-
-            this.currentQuestionnaire = questionnaire;
+            this.selectedLocation.municipality = selectedOption.textContent;
+            this.selectedLocation.municipalityId = municipioId;
 
             // Atualizar informações na tela
             const locationInfo = document.getElementById('locationInfo');
             if (locationInfo) {
-                locationInfo.textContent = `${this.selectedLocation.municipality}, ${this.selectedLocation.state}`;
+                locationInfo.textContent = `${this.selectedLocation.municipality}, ${this.selectedLocation.stateSigla}`;
             }
-
-            const subtitle = document.getElementById('questionnaireSubtitle');
-            if (subtitle) {
-                subtitle.textContent = questionnaire.name || 'Pesquisa de Satisfação';
-            }
-
-            // Ocultar seção de local e mostrar identificação
-            document.getElementById('locationSection')?.classList.add('hidden');
-            document.getElementById('identificationSection')?.classList.remove('hidden');
-
-        } catch (error) {
-            console.error('Erro ao carregar questionário:', error);
-
-            if (error.status === 404) {
-                this.showError('Não há questionário disponível para este local.');
-            } else {
-                this.showError('Erro ao carregar questionário. Tente novamente.');
-            }
-        } finally {
-            this.hideLoading();
+        } else {
+            this.selectedLocation.municipality = '';
+            this.selectedLocation.municipalityId = null;
         }
+
+        this.validateStartButton();
     }
 
     // ==================== IDENTIFICAÇÃO ====================
 
     onIdentificationChoice(choice) {
         const identificationFields = document.getElementById('identificationFields');
-        const startBtn = document.getElementById('startQuestionnaireBtn');
 
         if (choice === 'yes') {
             identificationFields?.classList.remove('hidden');
             this.userInfo.isAnonymous = false;
-            this.validateIdentificationFields();
         } else {
             identificationFields?.classList.add('hidden');
             this.userInfo.isAnonymous = true;
             this.userInfo.name = '';
             this.userInfo.position = '';
-
-            // Habilitar botão para anônimo
-            startBtn.disabled = false;
-            startBtn.classList.remove('disabled');
         }
+
+        this.validateStartButton();
     }
 
-    validateIdentificationFields() {
-        const nameField = document.getElementById('respondentName');
-        const positionField = document.getElementById('respondentPosition');
+    validateStartButton() {
         const startBtn = document.getElementById('startQuestionnaireBtn');
+        if (!startBtn) return;
 
-        if (!this.userInfo.isAnonymous && nameField && positionField) {
-            const isValid = nameField.value.trim().length > 0 && positionField.value.trim().length > 0;
+        // Verificar se a localização está selecionada
+        const locationValid = this.selectedLocation.state && this.selectedLocation.municipality;
 
-            if (isValid) {
-                this.userInfo.name = nameField.value.trim();
-                this.userInfo.position = positionField.value.trim();
-                startBtn.disabled = false;
-                startBtn.classList.remove('disabled');
-            } else {
-                startBtn.disabled = true;
-                startBtn.classList.add('disabled');
+        // Verificar identificação
+        const identifyYes = document.getElementById('identifyYes');
+        const identifyNo = document.getElementById('identifyNo');
+        const identificationSelected = identifyYes?.checked || identifyNo?.checked;
+
+        let identificationValid = false;
+
+        if (this.userInfo.isAnonymous) {
+            identificationValid = true;
+        } else {
+            const nameField = document.getElementById('respondentName');
+            const positionField = document.getElementById('respondentPosition');
+
+            if (nameField && positionField) {
+                const nameValid = nameField.value.trim().length > 0;
+                const positionValid = positionField.value.trim().length > 0;
+
+                if (nameValid && positionValid) {
+                    this.userInfo.name = nameField.value.trim();
+                    this.userInfo.position = positionField.value.trim();
+                    identificationValid = true;
+                }
             }
         }
+
+        // Habilitar/desabilitar botão
+        const canStart = locationValid && identificationSelected && identificationValid && this.currentQuestionnaire;
+
+        startBtn.disabled = !canStart;
+        startBtn.classList.toggle('disabled', !canStart);
     }
 
     // ==================== QUESTIONÁRIO ====================
 
     startQuestionnaire() {
         if (!this.currentQuestionnaire) {
-            this.showError('Questionário não carregado.');
+            this.showError('Nenhum questionário disponível no momento.');
+            return;
+        }
+
+        if (!this.selectedLocation.municipality) {
+            this.showError('Selecione o estado e município.');
             return;
         }
 
@@ -707,7 +709,8 @@ class QuestionnaireManager {
             // Preparar dados da resposta
             const responseData = {
                 questionnaire_id: this.currentQuestionnaire.id,
-                location_id: this.selectedLocation.locationId,
+                state: this.selectedLocation.stateSigla,
+                municipality: this.selectedLocation.municipality,
                 respondent_name: this.userInfo.isAnonymous ? null : this.userInfo.name,
                 respondent_position: this.userInfo.isAnonymous ? null : this.userInfo.position,
                 is_anonymous: this.userInfo.isAnonymous,

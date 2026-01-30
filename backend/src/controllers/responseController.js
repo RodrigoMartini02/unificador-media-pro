@@ -65,6 +65,8 @@ const responseController = {
             const {
                 questionnaire_id,
                 location_id,
+                state,
+                municipality,
                 respondent_name,
                 respondent_position,
                 is_anonymous,
@@ -80,7 +82,23 @@ const responseController = {
                 return res.status(400).json({ error: 'Questionnaire is not active' });
             }
 
-            // Verificar se localização existe
+            // Determinar o location_id
+            let finalLocationId = location_id;
+
+            // Se state e municipality foram enviados, buscar ou criar a localização
+            if (state && municipality && !location_id) {
+                // Primeiro, tentar encontrar a localização existente
+                let location = await LocationModel.findByStateAndMunicipality(state, municipality);
+
+                // Se não existir, criar uma nova
+                if (!location) {
+                    location = await LocationModel.create({ state, municipality });
+                }
+
+                finalLocationId = location.id;
+            }
+
+            // Verificar se localização existe (se foi passado location_id diretamente)
             if (location_id) {
                 const location = await LocationModel.findById(location_id);
                 if (!location) {
@@ -93,7 +111,7 @@ const responseController = {
                 // Criar resposta principal
                 const responseResult = await client.query(
                     'INSERT INTO responses (questionnaire_id, location_id, respondent_name, respondent_position, is_anonymous) VALUES ($1, $2, $3, $4, $5) RETURNING *',
-                    [questionnaire_id, location_id, respondent_name, respondent_position, is_anonymous || false]
+                    [questionnaire_id, finalLocationId, respondent_name, respondent_position, is_anonymous || false]
                 );
                 const response = responseResult.rows[0];
 
