@@ -7,7 +7,7 @@
 // CONFIGURAÇÃO DA API
 // ================================================================
 
-const API_URL = '/api';
+const AUTH_API_URL = '/api';
 
 const authApi = {
     async request(endpoint, options = {}) {
@@ -17,7 +17,7 @@ const authApi = {
         };
 
         try {
-            const response = await fetch(`${API_URL}${endpoint}`, { ...options, headers });
+            const response = await fetch(`${AUTH_API_URL}${endpoint}`, { ...options, headers });
             const data = await response.json();
 
             if (!response.ok) {
@@ -31,10 +31,10 @@ const authApi = {
         }
     },
 
-    async login(documento, password) {
+    async login(cpf, password) {
         return this.request('/auth/login', {
             method: 'POST',
-            body: JSON.stringify({ documento, password })
+            body: JSON.stringify({ cpf, password })
         });
     },
 
