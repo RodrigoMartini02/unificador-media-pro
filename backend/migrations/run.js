@@ -2,8 +2,8 @@ require('dotenv').config();
 const { pool } = require('../src/config/database');
 
 const migrations = [
-    // 1. Create users table
-    `CREATE TABLE IF NOT EXISTS users (
+    // 1. Create quest_users table (renamed to avoid conflicts with other projects)
+    `CREATE TABLE IF NOT EXISTS quest_users (
         id SERIAL PRIMARY KEY,
         name VARCHAR(255) NOT NULL,
         email VARCHAR(255) UNIQUE NOT NULL,
@@ -19,7 +19,7 @@ const migrations = [
         id SERIAL PRIMARY KEY,
         state VARCHAR(100) NOT NULL,
         municipality VARCHAR(255) NOT NULL,
-        created_by INTEGER REFERENCES users(id),
+        created_by INTEGER REFERENCES quest_users(id),
         created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
         updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
         UNIQUE(state, municipality)
@@ -31,7 +31,7 @@ const migrations = [
         name VARCHAR(255) NOT NULL,
         description TEXT,
         is_active BOOLEAN DEFAULT true,
-        created_by INTEGER REFERENCES users(id),
+        created_by INTEGER REFERENCES quest_users(id),
         created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
         updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
     )`,

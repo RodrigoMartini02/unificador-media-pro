@@ -3,35 +3,35 @@ const { query, transaction } = require('../config/database');
 // ==================== USERS ====================
 const UserModel = {
     async findByEmail(email) {
-        const result = await query('SELECT * FROM users WHERE email = $1', [email]);
+        const result = await query('SELECT * FROM quest_users WHERE email = $1', [email]);
         return result.rows[0];
     },
 
     async findByCpf(cpf) {
-        const result = await query('SELECT * FROM users WHERE documento = $1', [cpf]);
+        const result = await query('SELECT * FROM quest_users WHERE documento = $1', [cpf]);
         return result.rows[0];
     },
 
     async findById(id) {
-        const result = await query('SELECT id, name, email, documento, role, created_at FROM users WHERE id = $1', [id]);
+        const result = await query('SELECT id, name, email, documento, role, created_at FROM quest_users WHERE id = $1', [id]);
         return result.rows[0];
     },
 
     async findAll() {
-        const result = await query('SELECT id, name, email, documento, role, created_at FROM users ORDER BY name');
+        const result = await query('SELECT id, name, email, documento, role, created_at FROM quest_users ORDER BY name');
         return result.rows;
     },
 
     async create({ name, email, documento, password_hash, role = 'user' }) {
         const result = await query(
-            'INSERT INTO users (name, email, documento, password_hash, role) VALUES ($1, $2, $3, $4, $5) RETURNING id, name, email, documento, role, created_at',
+            'INSERT INTO quest_users (name, email, documento, password_hash, role) VALUES ($1, $2, $3, $4, $5) RETURNING id, name, email, documento, role, created_at',
             [name, email, documento, password_hash, role]
         );
         return result.rows[0];
     },
 
     async updatePassword(id, password_hash) {
-        await query('UPDATE users SET password_hash = $1 WHERE id = $2', [password_hash, id]);
+        await query('UPDATE quest_users SET password_hash = $1 WHERE id = $2', [password_hash, id]);
     }
 };
 

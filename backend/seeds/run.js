@@ -91,7 +91,7 @@ async function runSeeds() {
 
             try {
                 await client.query(
-                    `INSERT INTO users (name, email, documento, password_hash, role)
+                    `INSERT INTO quest_users (name, email, documento, password_hash, role)
                      VALUES ($1, $2, $3, $4, $5)
                      ON CONFLICT (email) DO NOTHING`,
                     [user.name, user.email, user.documento, hashedPassword, user.role]
@@ -103,7 +103,7 @@ async function runSeeds() {
         }
 
         // Obter ID do admin para usar como created_by
-        const adminResult = await client.query('SELECT id FROM users WHERE role = $1 LIMIT 1', ['admin']);
+        const adminResult = await client.query('SELECT id FROM quest_users WHERE role = $1 LIMIT 1', ['admin']);
         const adminId = adminResult.rows[0]?.id;
 
         // 2. Criar localizações de exemplo
