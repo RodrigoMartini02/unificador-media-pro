@@ -51,10 +51,16 @@ app.use('/api', routes);
 
 // Serve static files in production
 if (process.env.NODE_ENV === 'production') {
-    app.use(express.static(path.join(__dirname, '../../frontend')));
+    // Serve static files from root (where index.html, quest.html, css/, js/ are)
+    app.use(express.static(path.join(__dirname, '../..')));
 
-    app.get('*', (req, res) => {
-        res.sendFile(path.join(__dirname, '../../frontend/public/index.html'));
+    // Fallback to index.html for non-API routes
+    app.get('*', (req, res, next) => {
+        // Skip API routes
+        if (req.path.startsWith('/api')) {
+            return next();
+        }
+        res.sendFile(path.join(__dirname, '../../index.html'));
     });
 }
 
