@@ -42,7 +42,9 @@ const Utils = {
 
         const closeBtn = document.createElement('button');
         closeBtn.className = 'toast-close';
-        closeBtn.innerHTML = '<i class="fas fa-times"></i>';
+        const closeBtnIcon = document.createElement('i');
+        closeBtnIcon.className = 'fas fa-times';
+        closeBtn.appendChild(closeBtnIcon);
         closeBtn.onclick = () => toast.remove();
 
         toast.appendChild(icon);

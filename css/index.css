@@ -11,6 +11,13 @@
     --accent-color: #10b981;
     --warning-color: #f59e0b;
     --danger-color: #ef4444;
+
+    /* Cores do Gráfico de Satisfação */
+    --chart-muito-insatisfeito: #ef4444;
+    --chart-insatisfeito: #f59e0b;
+    --chart-neutro: #6b7280;
+    --chart-satisfeito: #10b981;
+    --chart-muito-satisfeito: #059669;
     
     /* Cores de Fundo */
     --bg-primary: #ffffff;
@@ -346,44 +353,12 @@ body {
     padding: 2rem;
 }
 
-/* ==================== LAYOUT ESPECÍFICO - DEFINIR LOCAL ==================== */
+/* ==================== LAYOUT - TELA CHEIA ==================== */
 
-.definir-local-layout {
-    display: grid;
-    grid-template-columns: 400px 1fr;
-    gap: 2rem;
-    align-items: start;
-}
-
-.definir-local-form-section {
-    display: flex;
-    flex-direction: column;
-    gap: 1.5rem;
-}
-
-.definir-local-list-section {
-    min-height: 600px;
-}
-
-/* ==================== LAYOUT GERAL - QUESTIONÁRIOS E LOCAIS ==================== */
-
-.questionario-layout {
-    display: grid;
-    grid-template-columns: 400px 1fr;
-    gap: 2rem;
-    align-items: start;
-}
-
-.questionario-form-section {
-    display: flex;
-    flex-direction: column;
-    gap: 1.5rem;
-}
-
+/* As secoes agora usam modais para formularios, entao as listas ocupam tela cheia */
+.definir-local-list-section,
 .questionario-list-section {
-    display: flex;
-    flex-direction: column;
-    gap: 1.5rem;
+    width: 100%;
 }
 
 /* ==================== CARDS ==================== */
@@ -974,21 +949,7 @@ body {
 
 /* ==================== RESPONSIVIDADE ==================== */
 
-@media (max-width: 1200px) {
-    .definir-local-layout,
-    .questionario-layout {
-        grid-template-columns: 1fr;
-        gap: 1.5rem;
-    }
-    
-    .definir-local-form-section {
-        order: 2;
-    }
-    
-    .definir-local-list-section {
-        order: 1;
-    }
-}
+/* Layout de tela cheia - formularios movidos para modais */
 
 @media (max-width: 768px) {
     .sidebar {
@@ -1133,7 +1094,13 @@ body {
 .mt-2 { margin-top: 1rem; }
 .mt-3 { margin-top: 1.5rem; }
 
-.hidden { display: none; }
+.hidden { display: none !important; }
+
+.btn-loading {
+    opacity: 0.7;
+    cursor: not-allowed;
+    pointer-events: none;
+}
 .block { display: block; }
 .flex { display: flex; }
 .grid { display: grid; }
@@ -1171,36 +1138,7 @@ body {
 
 /* ==================== DEFINIR LOCAL - ESTILOS ESPECÍFICOS ==================== */
 
-/* Layout específico para tela de definir local */
-.definir-local-layout {
-    display: grid;
-    grid-template-columns: 400px 1fr;
-    gap: 2rem;
-    align-items: start;
-    min-height: 600px;
-}
-
-/* Responsividade específica para definir local */
-@media (max-width: 1200px) {
-    .definir-local-layout {
-        grid-template-columns: 1fr;
-        gap: 1.5rem;
-    }
-    
-    .definir-local-form-section {
-        order: 2;
-    }
-    
-    .definir-local-list-section {
-        order: 1;
-    }
-}
-
-/* Estilos específicos para o formulário de vínculo */
-.definir-local-form-section .questionario-card {
-    position: sticky;
-    top: 1rem;
-}
+/* Secao agora usa modal para formulario, lista ocupa tela cheia */
 
 /* Estilos específicos para a tabela de vínculos */
 .vinculos-table-container {
@@ -1693,14 +1631,15 @@ body {
     right: 0;
     bottom: 0;
     z-index: 9000;
-    display: none;
+    display: flex;
     align-items: center;
     justify-content: center;
     padding: 1rem;
 }
 
-.modal.active {
-    display: flex;
+/* Todos os modais usam .hidden para ocultar */
+.modal.hidden {
+    display: none !important;
 }
 
 .modal-overlay {
@@ -2260,14 +2199,6 @@ body {
 
 /* ==================== CONFIRM MODAL ==================== */
 
-#confirmModal {
-    display: none;
-}
-
-#confirmModal.active {
-    display: flex;
-}
-
 #confirmModal .modal-dialog {
     max-width: 400px;
 }
@@ -2298,14 +2229,6 @@ body {
 }
 
 /* ==================== EDIT PERGUNTA MODAL ==================== */
-
-#editPerguntaModal {
-    display: none;
-}
-
-#editPerguntaModal.active {
-    display: flex;
-}
 
 #editPerguntaModal .modal-dialog {
     max-width: 500px;

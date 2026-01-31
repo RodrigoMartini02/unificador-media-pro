@@ -72,10 +72,10 @@ const Utils = {
 
             titleEl.textContent = title;
             messageEl.textContent = message;
-            modal.classList.add('active');
+            Utils.openModal(modal);
 
             const cleanup = () => {
-                modal.classList.remove('active');
+                Utils.closeModal(modal);
                 confirmBtn.removeEventListener('click', onConfirm);
                 cancelBtn.removeEventListener('click', onCancel);
             };
@@ -109,6 +109,16 @@ const Utils = {
     show(el) { el?.classList.remove('hidden'); },
     hide(el) { el?.classList.add('hidden'); },
     toggle(el, show) { show ? Utils.show(el) : Utils.hide(el); },
+
+    // Abrir/fechar modal (usando hidden ao inves de active)
+    openModal(modal) {
+        if (typeof modal === 'string') modal = document.getElementById(modal);
+        modal?.classList.remove('hidden');
+    },
+    closeModal(modal) {
+        if (typeof modal === 'string') modal = document.getElementById(modal);
+        modal?.classList.add('hidden');
+    },
 
     // Popular select com opções
     populateSelect(select, options, placeholder = 'Selecione...') {
@@ -308,7 +318,14 @@ class DashboardManager {
         if (this.charts.satisfaction) this.charts.satisfaction.destroy();
 
         const categories = ['Muito Insatisfeito', 'Insatisfeito', 'Neutro', 'Satisfeito', 'Muito Satisfeito'];
-        const colors = ['#EF4444', '#F59E0B', '#6B7280', '#10B981', '#059669'];
+        const style = getComputedStyle(document.documentElement);
+        const colors = [
+            style.getPropertyValue('--chart-muito-insatisfeito').trim(),
+            style.getPropertyValue('--chart-insatisfeito').trim(),
+            style.getPropertyValue('--chart-neutro').trim(),
+            style.getPropertyValue('--chart-satisfeito').trim(),
+            style.getPropertyValue('--chart-muito-satisfeito').trim()
+        ];
         const safeData = Array.isArray(satisfactionData) ? satisfactionData : [];
 
         const values = categories.map(cat => {
@@ -320,7 +337,7 @@ class DashboardManager {
             type: 'doughnut',
             data: {
                 labels: categories,
-                datasets: [{ data: values, backgroundColor: colors, borderWidth: 2, borderColor: '#ffffff' }]
+                datasets: [{ data: values, backgroundColor: colors, borderWidth: 2, borderColor: style.getPropertyValue('--bg-primary').trim() }]
             },
             options: {
                 responsive: true,
@@ -400,7 +417,7 @@ class DashboardManager {
             list.appendChild(item);
         });
 
-        modal.classList.add('active');
+        Utils.openModal(modal);
     }
 
     formatAnswer(answer) {
@@ -414,9 +431,9 @@ class DashboardManager {
         window.location.href = `${API_URL}/export/csv?${params}`;
     }
 
-    showLoading() { document.getElementById('loadingOverlay')?.classList.remove('hidden'); }
-    hideLoading() { document.getElementById('loadingOverlay')?.classList.add('hidden'); }
-    closeModal() { document.getElementById('modalDetalhesResposta')?.classList.remove('active'); }
+    showLoading() { Utils.show(document.getElementById('loadingOverlay')); }
+    hideLoading() { Utils.hide(document.getElementById('loadingOverlay')); }
+    closeModal() { Utils.closeModal('modalDetalhesResposta'); }
 }
 
 // ==================== GERENCIADOR DE LOCAIS ====================
@@ -453,6 +470,27 @@ class LocalManager {
             const option = e.target.selectedOptions[0];
             this.selectedUF = { id: e.target.value, sigla: option?.dataset.sigla, nome: option?.dataset.nome };
             await this.loadMunicipios(e.target.value);
+        });
+
+        // Abrir modal de novo vinculo
+        document.getElementById('btnNovoVinculo')?.addEventListener('click', () => {
+            Utils.openModal('modalNovoVinculo');
+        });
+
+        // Fechar modal de novo vinculo
+        document.getElementById('modalNovoVinculoClose')?.addEventListener('click', () => {
+            Utils.closeModal('modalNovoVinculo');
+        });
+        document.getElementById('modalNovoVinculoCancel')?.addEventListener('click', () => {
+            Utils.closeModal('modalNovoVinculo');
+        });
+        document.getElementById('modalNovoVinculoOverlay')?.addEventListener('click', () => {
+            Utils.closeModal('modalNovoVinculo');
+        });
+
+        // Salvar vinculo via botao do modal
+        document.getElementById('modalNovoVinculoSave')?.addEventListener('click', async () => {
+            await this.vincularLocal();
         });
 
         document.getElementById('formDefinirLocal')?.addEventListener('submit', async (e) => {
@@ -500,6 +538,7 @@ class LocalManager {
             await this.loadVinculos();
             document.getElementById('formDefinirLocal')?.reset();
             document.getElementById('selectMunicipio').disabled = true;
+            Utils.closeModal('modalNovoVinculo');
         } else {
             Utils.toast.error('Erro ao vincular local');
         }
@@ -570,9 +609,55 @@ class QuestionnaireManager {
     }
 
     bindEvents() {
+        // Modal Novo Questionario - Abrir
+        document.getElementById('btnNovoQuestionario')?.addEventListener('click', () => {
+            Utils.openModal('modalNovoQuestionario');
+        });
+
+        // Modal Novo Questionario - Fechar
+        document.getElementById('modalNovoQuestionarioClose')?.addEventListener('click', () => {
+            Utils.closeModal('modalNovoQuestionario');
+        });
+        document.getElementById('modalNovoQuestionarioCancel')?.addEventListener('click', () => {
+            Utils.closeModal('modalNovoQuestionario');
+        });
+        document.getElementById('modalNovoQuestionarioOverlay')?.addEventListener('click', () => {
+            Utils.closeModal('modalNovoQuestionario');
+        });
+
+        // Modal Novo Questionario - Salvar
+        document.getElementById('modalNovoQuestionarioSave')?.addEventListener('click', async () => {
+            await this.criar();
+        });
+
         document.getElementById('formCriarQuestionario')?.addEventListener('submit', async (e) => {
             e.preventDefault();
             await this.criar();
+        });
+
+        // Modal Adicionar Pergunta - Abrir
+        document.getElementById('btnAdicionarPergunta')?.addEventListener('click', () => {
+            if (this.selectedId) {
+                Utils.openModal('modalAdicionarPergunta');
+            } else {
+                Utils.toast.warning('Selecione um questionario primeiro');
+            }
+        });
+
+        // Modal Adicionar Pergunta - Fechar
+        document.getElementById('modalAdicionarPerguntaClose')?.addEventListener('click', () => {
+            Utils.closeModal('modalAdicionarPergunta');
+        });
+        document.getElementById('modalAdicionarPerguntaCancel')?.addEventListener('click', () => {
+            Utils.closeModal('modalAdicionarPergunta');
+        });
+        document.getElementById('modalAdicionarPerguntaOverlay')?.addEventListener('click', () => {
+            Utils.closeModal('modalAdicionarPergunta');
+        });
+
+        // Modal Adicionar Pergunta - Salvar
+        document.getElementById('modalAdicionarPerguntaSave')?.addEventListener('click', async () => {
+            await this.adicionarPergunta();
         });
 
         document.getElementById('formAdicionarPergunta')?.addEventListener('submit', async (e) => {
@@ -582,6 +667,14 @@ class QuestionnaireManager {
 
         document.getElementById('tipoPergunta')?.addEventListener('change', (e) => {
             Utils.toggle(document.getElementById('grupoEscala'), e.target.value === 'escala');
+        });
+
+        // Modal Editar Pergunta - Fechar
+        document.getElementById('editPerguntaModalClose')?.addEventListener('click', () => {
+            Utils.closeModal('editPerguntaModal');
+        });
+        document.getElementById('editPerguntaModalCancel')?.addEventListener('click', () => {
+            Utils.closeModal('editPerguntaModal');
         });
     }
 
@@ -625,6 +718,12 @@ class QuestionnaireManager {
 
             // Event listeners
             item.querySelector('.questionario-info')?.addEventListener('click', () => this.selecionar(q.id));
+            item.querySelector('.btn-add-pergunta')?.addEventListener('click', (e) => {
+                e.stopPropagation();
+                this.selectedId = q.id;
+                Utils.setText(document, '#badgeQuestionarioAtual', q.name);
+                Utils.openModal('modalAdicionarPergunta');
+            });
             item.querySelector('.btn-toggle')?.addEventListener('click', (e) => { e.stopPropagation(); this.toggleActive(q.id); });
             item.querySelector('.btn-delete')?.addEventListener('click', (e) => { e.stopPropagation(); this.excluir(q.id); });
 
@@ -655,6 +754,7 @@ class QuestionnaireManager {
         if (result && !result.error) {
             Utils.toast.success('Questionário criado!');
             input.value = '';
+            Utils.closeModal('modalNovoQuestionario');
             await this.load();
             this.selecionar(result.id);
         } else {
@@ -669,7 +769,6 @@ class QuestionnaireManager {
         this.selectedId = id;
         this.questions = data.questions || [];
 
-        Utils.show(document.getElementById('cardAdicionarPergunta'));
         Utils.show(document.getElementById('cardPerguntas'));
         Utils.setText(document, '#badgeQuestionarioAtual', data.name);
         Utils.setText(document, '#badgeNomeQuestionario', data.name);
@@ -743,6 +842,7 @@ class QuestionnaireManager {
             textoInput.value = '';
             tipoSelect.value = '';
             Utils.hide(document.getElementById('grupoEscala'));
+            Utils.closeModal('modalAdicionarPergunta');
             await this.selecionar(this.selectedId);
             await this.load();
         } else {
@@ -758,7 +858,7 @@ class QuestionnaireManager {
 
         textoInput.value = pergunta.text;
         tipoSelect.value = pergunta.type;
-        modal.classList.add('active');
+        Utils.openModal(modal);
 
         const save = async () => {
             const texto = textoInput.value.trim();
@@ -776,7 +876,7 @@ class QuestionnaireManager {
 
             if (result && !result.error) {
                 Utils.toast.success('Pergunta atualizada!');
-                modal.classList.remove('active');
+                Utils.closeModal(modal);
                 await this.selecionar(this.selectedId);
             } else {
                 Utils.toast.error('Erro ao atualizar pergunta');
@@ -807,7 +907,6 @@ class QuestionnaireManager {
 
         if (this.selectedId === id) {
             this.selectedId = null;
-            Utils.hide(document.getElementById('cardAdicionarPergunta'));
             Utils.hide(document.getElementById('cardPerguntas'));
         }
 
@@ -837,8 +936,16 @@ class NavigationManager {
             });
         });
 
+        // Toggle sidebar para menu mobile - usando ID unico
         document.getElementById('mobileMenuToggle')?.addEventListener('click', () => {
             document.getElementById('sidebar')?.classList.toggle('mobile-open');
+        });
+
+        // Toggle sidebar para botoes com data-toggle-sidebar
+        document.querySelectorAll('[data-toggle-sidebar]').forEach(btn => {
+            btn.addEventListener('click', () => {
+                document.getElementById('sidebar')?.classList.toggle('mobile-open');
+            });
         });
     }
 
@@ -875,18 +982,29 @@ document.addEventListener('DOMContentLoaded', async () => {
     window.localManager = localManager;
     window.questionnaireManager = questionnaireManager;
 
-    // Fechar modais com ESC
+    // Fechar modais com ESC (suporta hidden e active)
     document.addEventListener('keydown', (e) => {
         if (e.key === 'Escape') {
+            // Fechar modais que usam hidden
+            document.querySelectorAll('.modal:not(.hidden)').forEach(m => {
+                if (!m.classList.contains('hidden')) {
+                    Utils.closeModal(m);
+                }
+            });
+            // Fechar modais que usam active (compatibilidade)
             document.querySelectorAll('.modal.active').forEach(m => m.classList.remove('active'));
         }
     });
 
-    // Fechar modais clicando fora
-    document.addEventListener('click', (e) => {
-        if (e.target.classList.contains('modal')) {
-            e.target.classList.remove('active');
-        }
+    // Event listeners para fechar modal detalhes resposta
+    document.getElementById('modalDetalhesRespostaOverlay')?.addEventListener('click', () => {
+        Utils.closeModal('modalDetalhesResposta');
+    });
+    document.getElementById('modalDetalhesRespostaClose')?.addEventListener('click', () => {
+        Utils.closeModal('modalDetalhesResposta');
+    });
+    document.getElementById('modalDetalhesRespostaFechar')?.addEventListener('click', () => {
+        Utils.closeModal('modalDetalhesResposta');
     });
 
     console.log('Dashboard carregado!');

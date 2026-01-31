@@ -309,7 +309,6 @@ async function processarRecuperacao() {
             const campoCodigoContainer = document.getElementById('campo-codigo-container');
             if (campoCodigoContainer) {
                 campoCodigoContainer.classList.remove('hidden');
-                campoCodigoContainer.style.display = 'block';
             }
 
             // Alterar texto do botão
@@ -416,7 +415,6 @@ async function processarNovaSenha() {
 function abrirModal(modal) {
     if (modal) {
         modal.classList.remove('hidden');
-        modal.style.display = 'flex';
 
         // Focus no primeiro input
         const firstInput = modal.querySelector('input:not([type="hidden"])');
@@ -429,7 +427,6 @@ function abrirModal(modal) {
 function fecharModal(modal) {
     if (modal) {
         modal.classList.add('hidden');
-        modal.style.display = 'none';
 
         const form = modal.querySelector('form');
         if (form) form.reset();
@@ -437,14 +434,12 @@ function fecharModal(modal) {
         // Ocultar mensagens
         const messages = modal.querySelectorAll('.error-message, .success-message');
         messages.forEach(msg => {
-            msg.style.display = 'none';
             msg.classList.add('hidden');
         });
 
         // Resetar campo de código
         const campoCode = modal.querySelector('#campo-codigo-container');
         if (campoCode) {
-            campoCode.style.display = 'none';
             campoCode.classList.add('hidden');
         }
 
@@ -452,7 +447,7 @@ function fecharModal(modal) {
         const botao = modal.querySelector('button[type="submit"]');
         if (botao) {
             botao.disabled = false;
-            botao.style.opacity = '1';
+            botao.classList.remove('btn-loading');
         }
     }
 }
@@ -462,7 +457,6 @@ function inicializarModais() {
     modais.forEach(modal => {
         if (modal) {
             modal.classList.add('hidden');
-            modal.style.display = 'none';
         }
     });
 
@@ -477,7 +471,6 @@ function inicializarModais() {
 
     mensagens.forEach(msg => {
         if (msg) {
-            msg.style.display = 'none';
             msg.classList.add('hidden');
         }
     });
@@ -485,7 +478,6 @@ function inicializarModais() {
     // Ocultar campo de código
     const campoCode = document.getElementById('campo-codigo-container');
     if (campoCode) {
-        campoCode.style.display = 'none';
         campoCode.classList.add('hidden');
     }
 }
@@ -496,7 +488,6 @@ function inicializarModais() {
 
 function ocultarMensagem(elemento) {
     if (elemento) {
-        elemento.style.display = 'none';
         elemento.classList.add('hidden');
     }
 }
@@ -504,7 +495,6 @@ function ocultarMensagem(elemento) {
 function mostrarMensagem(elemento, mensagem, tipo = 'error') {
     if (elemento) {
         elemento.textContent = mensagem;
-        elemento.style.display = 'block';
         elemento.classList.remove('hidden');
     }
 }
@@ -577,11 +567,11 @@ function setLoadingState(button, loading = true, text = '') {
         button.disabled = true;
         button.dataset.originalText = button.textContent;
         button.textContent = text || 'Carregando...';
-        button.style.opacity = '0.7';
+        button.classList.add('btn-loading');
     } else {
         button.disabled = false;
         button.textContent = text || button.dataset.originalText || 'Enviar';
-        button.style.opacity = '1';
+        button.classList.remove('btn-loading');
     }
 }
 
