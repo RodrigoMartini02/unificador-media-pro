@@ -1,4 +1,4 @@
-const { QuestionnaireModel, QuestionModel } = require('../models');
+const { QuestionnaireModel, QuestionModel, LocationModel } = require('../models');
 
 const questionnaireController = {
     async findAll(req, res, next) {
@@ -147,6 +147,39 @@ const questionnaireController = {
             await QuestionModel.reorder(id, orderedIds);
             const questionnaire = await QuestionnaireModel.findWithQuestions(id);
             res.json(questionnaire);
+        } catch (error) {
+            next(error);
+        }
+    },
+
+    async setLocation(req, res, next) {
+        try {
+            const { id } = req.params;
+            const { state, municipality } = req.body;
+
+            // Verificar se o questionário existe
+            const questionnaire = await QuestionnaireModel.findById(id);
+            if (!questionnaire) {
+                return res.status(404).json({ error: 'Questionnaire not found' });
+            }
+
+            let locationId = null;
+
+            // Se state e municipality forem fornecidos, buscar ou criar a localização
+            if (state && municipality) {
+                let location = await LocationModel.findByStateAndMunicipality(state, municipality);
+                if (!location) {
+                    location = await LocationModel.create({ state, municipality });
+                }
+                locationId = location.id;
+            }
+
+            // Vincular/desvincular localização ao questionário
+            await QuestionnaireModel.setLocation(id, locationId);
+
+            // Retornar questionário atualizado
+            const updated = await QuestionnaireModel.findWithQuestions(id);
+            res.json(updated);
         } catch (error) {
             next(error);
         }

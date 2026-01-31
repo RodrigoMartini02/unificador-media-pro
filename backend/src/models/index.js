@@ -78,15 +78,24 @@ const LocationModel = {
 // ==================== QUESTIONNAIRES ====================
 const QuestionnaireModel = {
     async findAll(activeOnly = false) {
-        let sql = 'SELECT * FROM questionnaires';
-        if (activeOnly) sql += ' WHERE is_active = true';
-        sql += ' ORDER BY created_at DESC';
+        let sql = `
+            SELECT q.*, l.state, l.municipality
+            FROM questionnaires q
+            LEFT JOIN locations l ON q.location_id = l.id
+        `;
+        if (activeOnly) sql += ' WHERE q.is_active = true';
+        sql += ' ORDER BY q.created_at DESC';
         const result = await query(sql);
         return result.rows;
     },
 
     async findById(id) {
-        const result = await query('SELECT * FROM questionnaires WHERE id = $1', [id]);
+        const result = await query(`
+            SELECT q.*, l.state, l.municipality
+            FROM questionnaires q
+            LEFT JOIN locations l ON q.location_id = l.id
+            WHERE q.id = $1
+        `, [id]);
         return result.rows[0];
     },
 
@@ -114,6 +123,14 @@ const QuestionnaireModel = {
         const result = await query(
             'UPDATE questionnaires SET name = COALESCE($1, name), description = COALESCE($2, description), is_active = COALESCE($3, is_active), updated_at = CURRENT_TIMESTAMP WHERE id = $4 RETURNING *',
             [name, description, is_active, id]
+        );
+        return result.rows[0];
+    },
+
+    async setLocation(id, locationId) {
+        const result = await query(
+            'UPDATE questionnaires SET location_id = $1, updated_at = CURRENT_TIMESTAMP WHERE id = $2 RETURNING *',
+            [locationId, id]
         );
         return result.rows[0];
     },

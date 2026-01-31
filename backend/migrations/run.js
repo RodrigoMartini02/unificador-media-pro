@@ -70,6 +70,17 @@ const migrations = [
         created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
     )`,
 
+    // 7. Add location_id to questionnaires (for fixed location per questionnaire)
+    `DO $$
+    BEGIN
+        IF NOT EXISTS (
+            SELECT 1 FROM information_schema.columns
+            WHERE table_name = 'questionnaires' AND column_name = 'location_id'
+        ) THEN
+            ALTER TABLE questionnaires ADD COLUMN location_id INTEGER REFERENCES locations(id);
+        END IF;
+    END $$`,
+
     // Indexes for performance
     `CREATE INDEX IF NOT EXISTS idx_responses_questionnaire ON responses(questionnaire_id)`,
     `CREATE INDEX IF NOT EXISTS idx_responses_location ON responses(location_id)`,

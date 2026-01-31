@@ -65,6 +65,9 @@ router.put('/questionnaires/:id/questions/:questionId', authMiddleware, question
 router.delete('/questionnaires/:id/questions/:questionId', authMiddleware, questionnaireController.deleteQuestion);
 router.put('/questionnaires/:id/questions/reorder', authMiddleware, questionnaireController.reorderQuestions);
 
+// Set location for questionnaire (state and municipality can be null to unlink)
+router.patch('/questionnaires/:id/location', authMiddleware, questionnaireController.setLocation);
+
 // ==================== RESPONSE ROUTES ====================
 router.get('/responses', authMiddleware, responseController.findAll);
 router.get('/responses/:id', authMiddleware, responseController.findById);
