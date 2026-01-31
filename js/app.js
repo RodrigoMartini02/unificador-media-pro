@@ -548,6 +548,325 @@ class LocalManager {
     }
 }
 
+// ==================== GERENCIADOR DE QUESTIONÁRIOS ====================
+class QuestionnaireManager {
+    constructor() {
+        this.questionnaires = [];
+        this.selectedQuestionnaireId = null;
+        this.selectedQuestionnaire = null;
+    }
+
+    async init() {
+        this.setupEventListeners();
+        await this.loadQuestionnaires();
+    }
+
+    setupEventListeners() {
+        // Formulário de criar questionário
+        const formCriar = document.getElementById('formCriarQuestionario');
+        if (formCriar) {
+            formCriar.addEventListener('submit', async (e) => {
+                e.preventDefault();
+                await this.criarQuestionario();
+            });
+        }
+
+        // Formulário de adicionar pergunta
+        const formPergunta = document.getElementById('formAdicionarPergunta');
+        if (formPergunta) {
+            formPergunta.addEventListener('submit', async (e) => {
+                e.preventDefault();
+                await this.adicionarPergunta();
+            });
+        }
+
+        // Tipo de pergunta - mostrar/esconder escala
+        const tipoPergunta = document.getElementById('tipoPergunta');
+        if (tipoPergunta) {
+            tipoPergunta.addEventListener('change', (e) => {
+                const grupoEscala = document.getElementById('grupoEscala');
+                if (grupoEscala) {
+                    grupoEscala.style.display = e.target.value === 'escala' ? 'block' : 'none';
+                }
+            });
+        }
+    }
+
+    async loadQuestionnaires() {
+        try {
+            const data = await api.get('/questionnaires');
+            this.questionnaires = Array.isArray(data) ? data : [];
+            this.renderQuestionnairesList();
+            this.populateSelectQuestionario();
+        } catch (error) {
+            console.error('Erro ao carregar questionários:', error);
+        }
+    }
+
+    renderQuestionnairesList() {
+        const container = document.getElementById('listaQuestionarios');
+        const emptyMsg = document.getElementById('emptyQuestionarios');
+
+        if (!container) return;
+
+        if (!this.questionnaires.length) {
+            container.innerHTML = '';
+            if (emptyMsg) emptyMsg.style.display = 'block';
+            return;
+        }
+
+        if (emptyMsg) emptyMsg.style.display = 'none';
+
+        container.innerHTML = this.questionnaires.map(q => `
+            <div class="questionario-item ${this.selectedQuestionnaireId === q.id ? 'selected' : ''}" data-id="${q.id}">
+                <div class="questionario-info">
+                    <h4 class="questionario-nome">${q.name}</h4>
+                    <span class="questionario-total">${q.questions?.length || 0} perguntas</span>
+                    <span class="status-badge ${q.is_active ? 'status-ativo' : 'status-inativo'}">
+                        ${q.is_active ? 'Ativo' : 'Inativo'}
+                    </span>
+                </div>
+                <div class="questionario-actions">
+                    <button class="btn-icon btn-select" title="Selecionar" onclick="questionnaireManager.selectQuestionario(${q.id})">
+                        <i class="fas fa-hand-pointer"></i>
+                    </button>
+                    <button class="btn-icon btn-toggle" title="${q.is_active ? 'Desativar' : 'Ativar'}" onclick="questionnaireManager.toggleActive(${q.id})">
+                        <i class="fas fa-power-off"></i>
+                    </button>
+                    <button class="btn-icon btn-delete" title="Excluir" onclick="questionnaireManager.deleteQuestionario(${q.id})">
+                        <i class="fas fa-trash"></i>
+                    </button>
+                </div>
+            </div>
+        `).join('');
+    }
+
+    populateSelectQuestionario() {
+        // Popular select na seção "Definir Local"
+        const selectDefinirLocal = document.getElementById('selectQuestionario');
+        if (selectDefinirLocal) {
+            selectDefinirLocal.innerHTML = '<option value="">Selecione o questionário</option>' +
+                this.questionnaires.map(q => `<option value="${q.id}">${q.name}</option>`).join('');
+        }
+    }
+
+    async criarQuestionario() {
+        const nomeInput = document.getElementById('nomeQuestionario');
+        const nome = nomeInput?.value?.trim();
+
+        if (!nome) {
+            Swal.fire('Atenção', 'Digite o nome do questionário', 'warning');
+            return;
+        }
+
+        try {
+            const result = await api.post('/questionnaires', { name: nome });
+
+            if (result && !result.error) {
+                Swal.fire('Sucesso', 'Questionário criado com sucesso!', 'success');
+                nomeInput.value = '';
+                await this.loadQuestionnaires();
+                // Selecionar automaticamente o questionário criado
+                this.selectQuestionario(result.id);
+            } else {
+                throw new Error(result?.error || 'Erro ao criar');
+            }
+        } catch (error) {
+            console.error('Erro ao criar questionário:', error);
+            Swal.fire('Erro', 'Não foi possível criar o questionário', 'error');
+        }
+    }
+
+    async selectQuestionario(id) {
+        try {
+            const data = await api.get(`/questionnaires/${id}`);
+            if (data) {
+                this.selectedQuestionnaireId = id;
+                this.selectedQuestionnaire = data;
+
+                // Mostrar cards de adicionar pergunta e lista de perguntas
+                const cardPergunta = document.getElementById('cardAdicionarPergunta');
+                const cardPerguntas = document.getElementById('cardPerguntas');
+                const badgeAtual = document.getElementById('badgeQuestionarioAtual');
+                const badgeNome = document.getElementById('badgeNomeQuestionario');
+
+                if (cardPergunta) cardPergunta.style.display = 'block';
+                if (cardPerguntas) cardPerguntas.style.display = 'block';
+                if (badgeAtual) badgeAtual.textContent = data.name;
+                if (badgeNome) badgeNome.textContent = data.name;
+
+                this.renderQuestionnairesList();
+                this.renderPerguntas(data.questions || []);
+            }
+        } catch (error) {
+            console.error('Erro ao selecionar questionário:', error);
+        }
+    }
+
+    renderPerguntas(questions) {
+        const container = document.getElementById('listaPerguntas');
+        const emptyMsg = document.getElementById('emptyPerguntas');
+
+        if (!container) return;
+
+        if (!questions.length) {
+            container.innerHTML = '';
+            if (emptyMsg) emptyMsg.style.display = 'block';
+            return;
+        }
+
+        if (emptyMsg) emptyMsg.style.display = 'none';
+
+        const tipoLabels = {
+            'scale': 'Escala',
+            'boolean': 'Sim/Não',
+            'text': 'Texto',
+            'multiple': 'Múltipla Escolha'
+        };
+
+        container.innerHTML = questions.map((q, index) => `
+            <div class="pergunta-item" data-id="${q.id}">
+                <div class="pergunta-header">
+                    <span class="pergunta-numero">${index + 1}.</span>
+                    <span class="badge pergunta-tipo">${tipoLabels[q.type] || q.type}</span>
+                </div>
+                <div class="pergunta-texto">${q.text}</div>
+                <div class="pergunta-actions">
+                    <button class="btn-icon btn-delete" title="Excluir" onclick="questionnaireManager.deletePergunta(${q.id})">
+                        <i class="fas fa-trash"></i>
+                    </button>
+                </div>
+            </div>
+        `).join('');
+    }
+
+    async adicionarPergunta() {
+        if (!this.selectedQuestionnaireId) {
+            Swal.fire('Atenção', 'Selecione um questionário primeiro', 'warning');
+            return;
+        }
+
+        const textoInput = document.getElementById('textoPergunta');
+        const tipoSelect = document.getElementById('tipoPergunta');
+        const escalaSelect = document.getElementById('valorEscala');
+
+        const texto = textoInput?.value?.trim();
+        const tipo = tipoSelect?.value;
+
+        if (!texto || !tipo) {
+            Swal.fire('Atenção', 'Preencha todos os campos', 'warning');
+            return;
+        }
+
+        // Mapear tipos do frontend para o backend
+        const tipoMap = {
+            'escala': 'scale',
+            'simnao': 'boolean',
+            'texto': 'text'
+        };
+
+        const options = {};
+        if (tipo === 'escala') {
+            options.max = parseInt(escalaSelect?.value) || 10;
+        }
+
+        try {
+            const result = await api.post(`/questionnaires/${this.selectedQuestionnaireId}/questions`, {
+                text: texto,
+                type: tipoMap[tipo] || tipo,
+                options: options,
+                is_required: true
+            });
+
+            if (result && !result.error) {
+                Swal.fire('Sucesso', 'Pergunta adicionada com sucesso!', 'success');
+                textoInput.value = '';
+                tipoSelect.value = '';
+                document.getElementById('grupoEscala').style.display = 'none';
+
+                // Recarregar questionário para atualizar lista de perguntas
+                await this.selectQuestionario(this.selectedQuestionnaireId);
+                await this.loadQuestionnaires();
+            } else {
+                throw new Error(result?.error || 'Erro ao adicionar');
+            }
+        } catch (error) {
+            console.error('Erro ao adicionar pergunta:', error);
+            Swal.fire('Erro', 'Não foi possível adicionar a pergunta', 'error');
+        }
+    }
+
+    async deleteQuestionario(id) {
+        const result = await Swal.fire({
+            title: 'Excluir questionário?',
+            text: 'Esta ação não pode ser desfeita!',
+            icon: 'warning',
+            showCancelButton: true,
+            confirmButtonColor: '#EF4444',
+            cancelButtonText: 'Cancelar',
+            confirmButtonText: 'Sim, excluir'
+        });
+
+        if (result.isConfirmed) {
+            try {
+                await api.delete(`/questionnaires/${id}`);
+                Swal.fire('Excluído!', 'Questionário excluído com sucesso', 'success');
+
+                // Se era o selecionado, limpar seleção
+                if (this.selectedQuestionnaireId === id) {
+                    this.selectedQuestionnaireId = null;
+                    this.selectedQuestionnaire = null;
+                    document.getElementById('cardAdicionarPergunta').style.display = 'none';
+                    document.getElementById('cardPerguntas').style.display = 'none';
+                }
+
+                await this.loadQuestionnaires();
+            } catch (error) {
+                console.error('Erro ao excluir:', error);
+                Swal.fire('Erro', 'Não foi possível excluir o questionário', 'error');
+            }
+        }
+    }
+
+    async deletePergunta(questionId) {
+        const result = await Swal.fire({
+            title: 'Excluir pergunta?',
+            text: 'Esta ação não pode ser desfeita!',
+            icon: 'warning',
+            showCancelButton: true,
+            confirmButtonColor: '#EF4444',
+            cancelButtonText: 'Cancelar',
+            confirmButtonText: 'Sim, excluir'
+        });
+
+        if (result.isConfirmed) {
+            try {
+                await api.delete(`/questionnaires/${this.selectedQuestionnaireId}/questions/${questionId}`);
+                Swal.fire('Excluída!', 'Pergunta excluída com sucesso', 'success');
+                await this.selectQuestionario(this.selectedQuestionnaireId);
+                await this.loadQuestionnaires();
+            } catch (error) {
+                console.error('Erro ao excluir pergunta:', error);
+                Swal.fire('Erro', 'Não foi possível excluir a pergunta', 'error');
+            }
+        }
+    }
+
+    async toggleActive(id) {
+        try {
+            const result = await api.patch(`/questionnaires/${id}/toggle`);
+            if (result) {
+                const status = result.is_active ? 'ativado' : 'desativado';
+                Swal.fire('Sucesso', `Questionário ${status} com sucesso!`, 'success');
+                await this.loadQuestionnaires();
+            }
+        } catch (error) {
+            console.error('Erro ao alterar status:', error);
+            Swal.fire('Erro', 'Não foi possível alterar o status', 'error');
+        }
+    }
+}
+
 // ==================== NAVEGAÇÃO ====================
 class NavigationManager {
     constructor() {
@@ -585,6 +904,7 @@ class NavigationManager {
 let dashboard;
 let navigation;
 let localManager;
+let questionnaireManager;
 
 document.addEventListener('DOMContentLoaded', async () => {
     // Verificar dependências
@@ -598,6 +918,10 @@ document.addEventListener('DOMContentLoaded', async () => {
     dashboard = new DashboardManager();
     await dashboard.init();
 
+    // Inicializar gerenciador de questionários
+    questionnaireManager = new QuestionnaireManager();
+    await questionnaireManager.init();
+
     // Inicializar gerenciador de locais
     localManager = new LocalManager();
     await localManager.init();
@@ -606,6 +930,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     window.dashboard = dashboard;
     window.api = api;
     window.localManager = localManager;
+    window.questionnaireManager = questionnaireManager;
 
     console.log('Dashboard carregado!');
 });

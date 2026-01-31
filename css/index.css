@@ -694,7 +694,8 @@ body {
     box-shadow: var(--shadow-sm);
 }
 
-.questionario-item.active {
+.questionario-item.active,
+.questionario-item.selected {
     border-color: var(--primary-color);
     background-color: var(--primary-light);
 }
