@@ -227,11 +227,15 @@ const api = {
     }
 };
 
-// ==================== GERENCIADOR DO DASHBOARD ====================
+// ==================== GERENCIADOR DO DASHBOARD AVANÇADO ====================
 class DashboardManager {
     constructor() {
         this.charts = {};
         this.filters = { state: '', questionnaire_id: '', period: 'all' };
+        this.currentView = 'macro'; // macro, state, questionnaire
+        this.currentState = null;
+        this.currentQuestionnaire = null;
+        this.data = {};
     }
 
     async init() {
@@ -240,43 +244,104 @@ class DashboardManager {
             return;
         }
         this.bindEvents();
-        await this.load();
+        await this.loadMacroView();
     }
 
     bindEvents() {
+        // Filtros
         document.getElementById('stateSelect')?.addEventListener('change', (e) => {
             this.filters.state = e.target.value;
-            this.load();
+            this.loadMacroView();
         });
 
         document.getElementById('questionarioFilterSelect')?.addEventListener('change', (e) => {
             this.filters.questionnaire_id = e.target.value;
-            this.load();
+            this.loadMacroView();
         });
 
         document.querySelector('.period-selector')?.addEventListener('change', (e) => {
             this.filters.period = e.target.value;
-            this.load();
+            this.loadMacroView();
         });
 
+        // Navegação
+        document.getElementById('btnVoltarMacro')?.addEventListener('click', () => this.goBack());
         document.getElementById('exportButton')?.addEventListener('click', () => this.exportCSV());
         document.getElementById('logoutBtn')?.addEventListener('click', () => api.logout());
+
+        // Modal de análise de pergunta
+        document.getElementById('modalQuestionAnalysisOverlay')?.addEventListener('click', () => {
+            Utils.closeModal('modalQuestionAnalysis');
+        });
+        document.getElementById('modalQuestionAnalysisClose')?.addEventListener('click', () => {
+            Utils.closeModal('modalQuestionAnalysis');
+        });
+        document.getElementById('modalQuestionAnalysisFechar')?.addEventListener('click', () => {
+            Utils.closeModal('modalQuestionAnalysis');
+        });
     }
 
-    async load() {
+    // ==================== NAVEGAÇÃO ====================
+    showView(viewName) {
+        document.querySelectorAll('.dashboard-view').forEach(v => v.classList.add('hidden'));
+        document.getElementById(`view${viewName.charAt(0).toUpperCase() + viewName.slice(1)}`)?.classList.remove('hidden');
+
+        const breadcrumb = document.getElementById('dashboardBreadcrumb');
+        if (viewName === 'macro') {
+            breadcrumb?.classList.add('hidden');
+        } else {
+            breadcrumb?.classList.remove('hidden');
+        }
+
+        this.currentView = viewName;
+    }
+
+    goBack() {
+        if (this.currentView === 'state') {
+            this.showView('macro');
+            this.loadMacroView();
+        } else if (this.currentView === 'questionnaire') {
+            if (this.currentState) {
+                this.showView('state');
+                this.loadStateView(this.currentState);
+            } else {
+                this.showView('macro');
+                this.loadMacroView();
+            }
+        }
+    }
+
+    updateBreadcrumb(text) {
+        document.getElementById('breadcrumbCurrent').textContent = text;
+    }
+
+    // ==================== VISÃO MACRO ====================
+    async loadMacroView() {
         try {
             this.showLoading();
-            const [overview, satisfaction, locations, questionnaires] = await Promise.all([
-                api.get('/analytics/overview'),
+            this.showView('macro');
+
+            const [macro, nps, critical, satisfaction, trends, locations, questionnaires] = await Promise.all([
+                api.get('/analytics/macro'),
+                api.get('/analytics/nps'),
+                api.get('/analytics/critical'),
                 api.get('/analytics/satisfaction'),
+                api.get('/analytics/trends?period=30d'),
                 api.get('/locations'),
                 api.get('/questionnaires')
             ]);
 
-            this.updateStats(overview || {});
+            this.data = { macro, nps, critical, satisfaction, trends, locations, questionnaires };
+
+            this.updateMacroStats(macro, nps, critical);
             this.populateFilters(locations || [], questionnaires || []);
-            this.createCharts(satisfaction || []);
-            await this.loadResponses();
+            this.createNpsGauge(nps);
+            this.createQuestionnaireComparison(macro?.questionnaireStats || []);
+            this.createTrendsChart(trends || []);
+            this.createStateTreemap(macro?.stateStats || []);
+            this.createSatisfactionDonut(satisfaction || []);
+            this.renderCriticalAlerts(critical || []);
+
         } catch (error) {
             console.error('Erro ao carregar dashboard:', error);
             Utils.toast.error('Erro ao carregar dados');
@@ -285,16 +350,32 @@ class DashboardManager {
         }
     }
 
-    updateStats(data) {
-        document.getElementById('totalRespostas').textContent = data?.totalResponses || 0;
-        document.getElementById('totalLocais').textContent = data?.totalLocations || 0;
-        document.getElementById('respostasHoje').textContent = data?.todayResponses || 0;
+    updateMacroStats(macro, nps, critical) {
+        const totals = macro?.totals || {};
 
-        const avg = data?.avgSatisfaction || 0;
+        document.getElementById('totalRespostas').textContent = totals.totalResponses || 0;
+        document.getElementById('totalLocais').textContent = `${totals.totalStates || 0}/${totals.totalLocations || 0}`;
+        document.getElementById('totalAlertas').textContent = (critical || []).length;
+
+        const avg = totals.avgSatisfaction || 0;
         const avgEl = document.getElementById('mediaSatisfacao');
         if (avgEl) {
             avgEl.textContent = avg.toFixed(1);
             avgEl.className = avg >= 7 ? 'stat-value positive' : avg >= 5 ? 'stat-value' : 'stat-value negative';
+        }
+
+        // NPS
+        const npsValue = nps?.nps || 0;
+        const npsEl = document.getElementById('npsScore');
+        const npsBadge = document.getElementById('npsBadge');
+        if (npsEl) {
+            npsEl.textContent = npsValue;
+            npsEl.className = npsValue >= 50 ? 'stat-value nps-value positive' :
+                              npsValue >= 0 ? 'stat-value nps-value neutral' : 'stat-value nps-value negative';
+        }
+        if (npsBadge) {
+            npsBadge.textContent = npsValue >= 50 ? 'Excelente' : npsValue >= 0 ? 'Bom' : 'Crítico';
+            npsBadge.className = `nps-badge ${npsValue >= 50 ? 'nps-excellent' : npsValue >= 0 ? 'nps-good' : 'nps-critical'}`;
         }
     }
 
@@ -311,121 +392,725 @@ class DashboardManager {
         }
     }
 
-    createCharts(satisfactionData) {
-        const ctx = document.getElementById('chartSatisfacao');
-        if (!ctx || !window.Chart) return;
+    // ==================== GRÁFICOS MACRO ====================
+    createNpsGauge(nps) {
+        const container = document.getElementById('npsGauge');
+        if (!container) return;
 
-        if (this.charts.satisfaction) this.charts.satisfaction.destroy();
+        this.destroyChart('npsGauge');
+
+        const npsValue = nps?.nps || 0;
+        const options = {
+            series: [npsValue + 100], // NPS vai de -100 a 100, normalizamos para 0-200
+            chart: {
+                type: 'radialBar',
+                height: 250,
+                offsetY: -10
+            },
+            plotOptions: {
+                radialBar: {
+                    startAngle: -135,
+                    endAngle: 135,
+                    hollow: { size: '70%' },
+                    track: {
+                        background: '#e7e7e7',
+                        strokeWidth: '100%'
+                    },
+                    dataLabels: {
+                        name: {
+                            show: true,
+                            fontSize: '14px',
+                            color: '#888',
+                            offsetY: 60
+                        },
+                        value: {
+                            show: true,
+                            fontSize: '32px',
+                            fontWeight: 700,
+                            color: npsValue >= 50 ? '#10b981' : npsValue >= 0 ? '#f59e0b' : '#ef4444',
+                            offsetY: 10,
+                            formatter: () => npsValue
+                        }
+                    }
+                }
+            },
+            fill: {
+                type: 'gradient',
+                gradient: {
+                    shade: 'dark',
+                    type: 'horizontal',
+                    colorStops: [
+                        { offset: 0, color: '#ef4444' },
+                        { offset: 50, color: '#f59e0b' },
+                        { offset: 100, color: '#10b981' }
+                    ]
+                }
+            },
+            labels: ['NPS Score']
+        };
+
+        this.charts.npsGauge = new ApexCharts(container, options);
+        this.charts.npsGauge.render();
+    }
+
+    createQuestionnaireComparison(questionnaireStats) {
+        const container = document.getElementById('questionnaireComparison');
+        if (!container) return;
+
+        this.destroyChart('questionnaireComparison');
+
+        const data = (questionnaireStats || []).slice(0, 10);
+        if (!data.length) {
+            container.innerHTML = '<div class="empty-chart"><i class="fas fa-chart-bar"></i><p>Sem dados</p></div>';
+            return;
+        }
+
+        const options = {
+            series: [{
+                name: 'Respostas',
+                data: data.map(q => parseInt(q.total_responses) || 0)
+            }, {
+                name: 'Satisfação',
+                data: data.map(q => parseFloat(q.avg_satisfaction)?.toFixed(1) || 0)
+            }],
+            chart: {
+                type: 'bar',
+                height: 300,
+                toolbar: { show: false },
+                events: {
+                    dataPointSelection: (event, chartContext, config) => {
+                        const questionnaire = data[config.dataPointIndex];
+                        if (questionnaire) {
+                            this.loadQuestionnaireView(questionnaire.id, questionnaire.name);
+                        }
+                    }
+                }
+            },
+            plotOptions: {
+                bar: {
+                    horizontal: true,
+                    barHeight: '70%',
+                    dataLabels: { position: 'top' }
+                }
+            },
+            colors: ['#3b82f6', '#10b981'],
+            dataLabels: { enabled: false },
+            xaxis: {
+                categories: data.map(q => q.name?.substring(0, 25) || 'Sem nome')
+            },
+            yaxis: [
+                { title: { text: 'Respostas' } },
+                { opposite: true, title: { text: 'Satisfação' }, max: 10 }
+            ],
+            tooltip: {
+                shared: true,
+                intersect: false
+            },
+            legend: { position: 'top' }
+        };
+
+        this.charts.questionnaireComparison = new ApexCharts(container, options);
+        this.charts.questionnaireComparison.render();
+    }
+
+    createTrendsChart(trends) {
+        const container = document.getElementById('trendsChart');
+        if (!container) return;
+
+        this.destroyChart('trendsChart');
+
+        const data = trends || [];
+        if (!data.length) {
+            container.innerHTML = '<div class="empty-chart"><i class="fas fa-chart-line"></i><p>Sem dados de tendência</p></div>';
+            return;
+        }
+
+        const options = {
+            series: [{
+                name: 'Respostas',
+                type: 'column',
+                data: data.map(t => parseInt(t.count) || 0)
+            }, {
+                name: 'Satisfação Média',
+                type: 'line',
+                data: data.map(t => parseFloat(t.avg_satisfaction)?.toFixed(1) || 0)
+            }],
+            chart: {
+                height: 300,
+                toolbar: { show: false }
+            },
+            stroke: { width: [0, 3] },
+            colors: ['#3b82f6', '#10b981'],
+            xaxis: {
+                categories: data.map(t => t.date),
+                labels: { rotate: -45 }
+            },
+            yaxis: [
+                { title: { text: 'Respostas' } },
+                { opposite: true, title: { text: 'Satisfação' }, max: 10, min: 0 }
+            ],
+            tooltip: { shared: true },
+            legend: { position: 'top' }
+        };
+
+        this.charts.trendsChart = new ApexCharts(container, options);
+        this.charts.trendsChart.render();
+    }
+
+    createStateTreemap(stateStats) {
+        const container = document.getElementById('stateTreemap');
+        if (!container) return;
+
+        this.destroyChart('stateTreemap');
+
+        const data = (stateStats || []).filter(s => s.state && s.total_responses > 0);
+        if (!data.length) {
+            container.innerHTML = '<div class="empty-chart"><i class="fas fa-map"></i><p>Sem dados por estado</p></div>';
+            return;
+        }
+
+        const options = {
+            series: [{
+                data: data.map(s => ({
+                    x: s.state,
+                    y: parseInt(s.total_responses) || 0,
+                    fillColor: this.getSatisfactionColor(parseFloat(s.avg_satisfaction) || 0)
+                }))
+            }],
+            chart: {
+                type: 'treemap',
+                height: 300,
+                toolbar: { show: false },
+                events: {
+                    dataPointSelection: (event, chartContext, config) => {
+                        const state = data[config.dataPointIndex];
+                        if (state) {
+                            this.loadStateView(state.state);
+                        }
+                    }
+                }
+            },
+            plotOptions: {
+                treemap: {
+                    distributed: true,
+                    enableShades: false
+                }
+            },
+            tooltip: {
+                y: {
+                    formatter: (value, { dataPointIndex }) => {
+                        const state = data[dataPointIndex];
+                        const avg = parseFloat(state?.avg_satisfaction)?.toFixed(1) || 0;
+                        return `${value} respostas (Média: ${avg})`;
+                    }
+                }
+            }
+        };
+
+        this.charts.stateTreemap = new ApexCharts(container, options);
+        this.charts.stateTreemap.render();
+    }
+
+    createSatisfactionDonut(satisfaction) {
+        const container = document.getElementById('satisfactionDonut');
+        if (!container) return;
+
+        this.destroyChart('satisfactionDonut');
 
         const categories = ['Muito Insatisfeito', 'Insatisfeito', 'Neutro', 'Satisfeito', 'Muito Satisfeito'];
-        const style = getComputedStyle(document.documentElement);
-        const colors = [
-            style.getPropertyValue('--chart-muito-insatisfeito').trim(),
-            style.getPropertyValue('--chart-insatisfeito').trim(),
-            style.getPropertyValue('--chart-neutro').trim(),
-            style.getPropertyValue('--chart-satisfeito').trim(),
-            style.getPropertyValue('--chart-muito-satisfeito').trim()
-        ];
-        const safeData = Array.isArray(satisfactionData) ? satisfactionData : [];
+        const colors = ['#ef4444', '#f59e0b', '#6b7280', '#10b981', '#059669'];
+        const safeData = Array.isArray(satisfaction) ? satisfaction : [];
 
         const values = categories.map(cat => {
             const item = safeData.find(d => d.category === cat);
             return item ? parseInt(item.count) : 0;
         });
 
-        this.charts.satisfaction = new Chart(ctx, {
-            type: 'doughnut',
-            data: {
-                labels: categories,
-                datasets: [{ data: values, backgroundColor: colors, borderWidth: 2, borderColor: style.getPropertyValue('--bg-primary').trim() }]
+        if (values.every(v => v === 0)) {
+            container.innerHTML = '<div class="empty-chart"><i class="fas fa-chart-pie"></i><p>Sem dados</p></div>';
+            return;
+        }
+
+        const options = {
+            series: values,
+            chart: {
+                type: 'donut',
+                height: 300
             },
-            options: {
-                responsive: true,
-                maintainAspectRatio: false,
-                plugins: { legend: { position: 'bottom', labels: { padding: 20, usePointStyle: true } } }
-            }
-        });
+            labels: categories,
+            colors: colors,
+            legend: {
+                position: 'bottom',
+                fontSize: '12px'
+            },
+            plotOptions: {
+                pie: {
+                    donut: {
+                        size: '65%',
+                        labels: {
+                            show: true,
+                            total: {
+                                show: true,
+                                label: 'Total',
+                                fontSize: '14px',
+                                fontWeight: 600
+                            }
+                        }
+                    }
+                }
+            },
+            responsive: [{
+                breakpoint: 480,
+                options: { legend: { position: 'bottom' } }
+            }]
+        };
+
+        this.charts.satisfactionDonut = new ApexCharts(container, options);
+        this.charts.satisfactionDonut.render();
     }
 
-    async loadResponses() {
-        const params = new URLSearchParams();
-        if (this.filters.state) params.append('state', this.filters.state);
-        if (this.filters.questionnaire_id) params.append('questionnaire_id', this.filters.questionnaire_id);
-
-        const result = await api.get(`/responses?${params}`);
-        // Backend retorna { data: [...], pagination: {...} }
-        const responses = result?.data || result || [];
-        this.renderResponses(responses);
-    }
-
-    renderResponses(responses) {
-        const container = document.getElementById('respostasGrid');
+    renderCriticalAlerts(critical) {
+        const container = document.getElementById('criticalAlerts');
+        const emptyMsg = document.getElementById('emptyAlerts');
         if (!container) return;
 
         Utils.clearContainer(container);
 
-        if (!responses.length) {
-            const emptyState = document.createElement('div');
-            emptyState.className = 'empty-state';
-
-            const icon = document.createElement('i');
-            icon.className = 'fas fa-inbox';
-
-            const title = document.createElement('h3');
-            title.textContent = 'Nenhuma resposta encontrada';
-
-            emptyState.appendChild(icon);
-            emptyState.appendChild(title);
-            container.appendChild(emptyState);
+        if (!critical || !critical.length) {
+            Utils.hide(container);
+            Utils.show(emptyMsg);
             return;
         }
 
-        responses.forEach(r => {
-            const card = Utils.cloneTemplate('template-resposta-card');
-            if (!card) return;
+        Utils.show(container);
+        Utils.hide(emptyMsg);
 
-            Utils.setText(card, '.respondente-nome', r.is_anonymous ? 'Anônimo' : (r.respondent_name || 'Não informado'));
-            Utils.setText(card, '.respondente-cargo', r.respondent_position || '-');
-            Utils.setText(card, '.local-text', `${r.municipality || ''}, ${r.state || ''}`);
-            Utils.setText(card, '.data-text', Utils.formatDate(r.submitted_at));
-            Utils.setText(card, '.questionario-text', r.questionnaire_name || '');
-
-            card.querySelector('.btn-ver-detalhes')?.addEventListener('click', () => this.viewResponse(r.id));
-            container.appendChild(card);
+        critical.forEach(q => {
+            const alert = document.createElement('div');
+            alert.className = `critical-alert severity-${q.severity}`;
+            alert.innerHTML = `
+                <div class="alert-icon">
+                    <i class="fas fa-exclamation-triangle"></i>
+                </div>
+                <div class="alert-content">
+                    <div class="alert-question">${q.text}</div>
+                    <div class="alert-meta">
+                        <span class="questionnaire-name">${q.questionnaire_name}</span>
+                        <span class="response-count">${q.total_responses} respostas</span>
+                    </div>
+                </div>
+                <div class="alert-score">
+                    <span class="score-value">${parseFloat(q.avg_satisfaction).toFixed(1)}</span>
+                    <span class="score-label">média</span>
+                </div>
+            `;
+            alert.addEventListener('click', () => {
+                this.showQuestionAnalysis(q.id, q.questionnaire_id);
+            });
+            container.appendChild(alert);
         });
     }
 
-    async viewResponse(id) {
-        const response = await api.get(`/responses/${id}`);
-        if (!response) return;
+    // ==================== VISÃO POR ESTADO ====================
+    async loadStateView(state) {
+        try {
+            this.showLoading();
+            this.currentState = state;
+            this.showView('state');
+            this.updateBreadcrumb(state);
 
-        const modal = document.getElementById('modalDetalhesResposta');
-        if (!modal) return;
+            const analysis = await api.get(`/analytics/state/${encodeURIComponent(state)}`);
+            if (!analysis) {
+                Utils.toast.error('Erro ao carregar dados do estado');
+                return;
+            }
 
-        Utils.setText(modal, '#modalRespondenteNome', response.is_anonymous ? 'Anônimo' : (response.respondent_name || 'Não informado'));
-        Utils.setText(modal, '#modalRespondenteCargo', response.respondent_position || '-');
-        Utils.setText(modal, '#modalRespondenteLocal', `${response.municipality || ''}, ${response.state || ''}`);
-        Utils.setText(modal, '#modalRespostaData', Utils.formatDate(response.submitted_at));
+            // Atualizar header
+            document.getElementById('stateTitle').textContent = state;
+            document.getElementById('stateResponses').textContent = analysis.overview?.totalResponses || 0;
+            document.getElementById('stateAvg').textContent = (analysis.overview?.avgSatisfaction || 0).toFixed(1);
 
-        const list = document.getElementById('modalRespostasList');
-        Utils.clearContainer(list);
-        (response.answers || []).forEach((a, i) => {
-            const item = Utils.cloneTemplate('template-resposta-detalhe');
-            if (!item) return;
-            Utils.setText(item, '.pergunta-numero', `${i + 1}.`);
-            Utils.setText(item, '.pergunta-tipo-badge', a.question_type?.toUpperCase() || '');
-            Utils.setText(item, '.pergunta-texto', a.question_text || '');
-            Utils.setText(item, '.resposta-valor', this.formatAnswer(a));
-            list.appendChild(item);
-        });
+            const vsOverall = parseFloat(analysis.overview?.vsOverall) || 0;
+            const vsEl = document.getElementById('stateVsOverall');
+            if (vsEl) {
+                vsEl.innerHTML = `vs Geral: <strong class="${vsOverall >= 0 ? 'text-success' : 'text-danger'}">${vsOverall >= 0 ? '+' : ''}${vsOverall}</strong>`;
+            }
 
-        Utils.openModal(modal);
+            // Gráficos
+            this.createMunicipalityRanking(analysis.municipalityRanking || []);
+            this.createStateSatisfaction(analysis.satisfaction || []);
+            this.createStateTrends(analysis.trends || []);
+            this.createStateNpsGauge(analysis.nps);
+
+        } catch (error) {
+            console.error('Erro ao carregar estado:', error);
+            Utils.toast.error('Erro ao carregar dados do estado');
+        } finally {
+            this.hideLoading();
+        }
     }
 
-    formatAnswer(answer) {
-        if (answer.question_type === 'scale') return `${answer.numeric_value}/10`;
-        if (answer.question_type === 'boolean') return answer.value === 'true' ? 'Sim' : 'Não';
-        return answer.value || '-';
+    createMunicipalityRanking(ranking) {
+        const container = document.getElementById('municipalityRanking');
+        if (!container) return;
+
+        this.destroyChart('municipalityRanking');
+
+        if (!ranking.length) {
+            container.innerHTML = '<div class="empty-chart"><i class="fas fa-trophy"></i><p>Sem municípios</p></div>';
+            return;
+        }
+
+        const data = ranking.slice(0, 10);
+        const options = {
+            series: [{
+                name: 'Satisfação',
+                data: data.map(m => parseFloat(m.avg_satisfaction)?.toFixed(1) || 0)
+            }],
+            chart: {
+                type: 'bar',
+                height: 300,
+                toolbar: { show: false }
+            },
+            plotOptions: {
+                bar: { horizontal: true, barHeight: '60%' }
+            },
+            colors: data.map(m => this.getSatisfactionColor(parseFloat(m.avg_satisfaction) || 0)),
+            dataLabels: {
+                enabled: true,
+                formatter: val => val.toFixed(1)
+            },
+            xaxis: {
+                categories: data.map(m => m.municipality),
+                max: 10
+            }
+        };
+
+        this.charts.municipalityRanking = new ApexCharts(container, options);
+        this.charts.municipalityRanking.render();
+    }
+
+    createStateSatisfaction(satisfaction) {
+        const container = document.getElementById('stateSatisfaction');
+        if (!container) return;
+
+        this.destroyChart('stateSatisfaction');
+
+        const categories = ['Muito Insatisfeito', 'Insatisfeito', 'Neutro', 'Satisfeito', 'Muito Satisfeito'];
+        const colors = ['#ef4444', '#f59e0b', '#6b7280', '#10b981', '#059669'];
+        const values = categories.map(cat => {
+            const item = (satisfaction || []).find(d => d.category === cat);
+            return item ? parseInt(item.count) : 0;
+        });
+
+        const options = {
+            series: values,
+            chart: { type: 'pie', height: 280 },
+            labels: categories,
+            colors: colors,
+            legend: { position: 'bottom', fontSize: '11px' }
+        };
+
+        this.charts.stateSatisfaction = new ApexCharts(container, options);
+        this.charts.stateSatisfaction.render();
+    }
+
+    createStateTrends(trends) {
+        const container = document.getElementById('stateTrends');
+        if (!container) return;
+
+        this.destroyChart('stateTrends');
+
+        if (!trends.length) {
+            container.innerHTML = '<div class="empty-chart"><i class="fas fa-chart-area"></i><p>Sem dados</p></div>';
+            return;
+        }
+
+        const options = {
+            series: [{
+                name: 'Respostas',
+                data: trends.map(t => parseInt(t.count) || 0)
+            }],
+            chart: {
+                type: 'area',
+                height: 250,
+                toolbar: { show: false }
+            },
+            colors: ['#3b82f6'],
+            fill: {
+                type: 'gradient',
+                gradient: { opacityFrom: 0.5, opacityTo: 0.1 }
+            },
+            xaxis: { categories: trends.map(t => t.date) },
+            stroke: { curve: 'smooth', width: 2 }
+        };
+
+        this.charts.stateTrends = new ApexCharts(container, options);
+        this.charts.stateTrends.render();
+    }
+
+    createStateNpsGauge(nps) {
+        const container = document.getElementById('stateNpsGauge');
+        if (!container) return;
+
+        this.destroyChart('stateNpsGauge');
+
+        const npsValue = nps?.nps || 0;
+        const options = {
+            series: [npsValue + 100],
+            chart: { type: 'radialBar', height: 200 },
+            plotOptions: {
+                radialBar: {
+                    startAngle: -135,
+                    endAngle: 135,
+                    hollow: { size: '65%' },
+                    dataLabels: {
+                        name: { show: true, fontSize: '12px', offsetY: 50 },
+                        value: {
+                            show: true,
+                            fontSize: '24px',
+                            fontWeight: 700,
+                            color: npsValue >= 50 ? '#10b981' : npsValue >= 0 ? '#f59e0b' : '#ef4444',
+                            offsetY: 5,
+                            formatter: () => npsValue
+                        }
+                    }
+                }
+            },
+            fill: { colors: [npsValue >= 50 ? '#10b981' : npsValue >= 0 ? '#f59e0b' : '#ef4444'] },
+            labels: ['NPS']
+        };
+
+        this.charts.stateNpsGauge = new ApexCharts(container, options);
+        this.charts.stateNpsGauge.render();
+    }
+
+    // ==================== VISÃO POR QUESTIONÁRIO ====================
+    async loadQuestionnaireView(questionnaireId, name) {
+        try {
+            this.showLoading();
+            this.currentQuestionnaire = { id: questionnaireId, name };
+            this.showView('questionnaire');
+            this.updateBreadcrumb(name || 'Questionário');
+
+            const [analysis, questions] = await Promise.all([
+                api.get(`/analytics/questionnaire/${questionnaireId}`),
+                api.get(`/analytics/questionnaire/${questionnaireId}/questions`)
+            ]);
+
+            if (!analysis) {
+                Utils.toast.error('Erro ao carregar questionário');
+                return;
+            }
+
+            // Header
+            document.getElementById('questionnaireTitle').textContent = name || 'Questionário';
+            document.getElementById('qResponses').textContent = analysis.totalResponses || 0;
+            document.getElementById('qAvg').textContent = (analysis.avgSatisfaction || 0).toFixed(1);
+
+            // Gráficos
+            this.createQuestionsBarChart(questions || []);
+            this.createQuestionsRadar(questions || []);
+
+        } catch (error) {
+            console.error('Erro ao carregar questionário:', error);
+        } finally {
+            this.hideLoading();
+        }
+    }
+
+    createQuestionsBarChart(questions) {
+        const container = document.getElementById('questionsBarChart');
+        if (!container) return;
+
+        this.destroyChart('questionsBarChart');
+
+        const scaleQuestions = questions.filter(q => q.type === 'scale' && q.avg_satisfaction);
+        if (!scaleQuestions.length) {
+            container.innerHTML = '<div class="empty-chart"><i class="fas fa-question-circle"></i><p>Sem perguntas de escala</p></div>';
+            return;
+        }
+
+        const options = {
+            series: [{
+                name: 'Média',
+                data: scaleQuestions.map(q => parseFloat(q.avg_satisfaction)?.toFixed(1) || 0)
+            }],
+            chart: {
+                type: 'bar',
+                height: 350,
+                toolbar: { show: false },
+                events: {
+                    dataPointSelection: (event, chartContext, config) => {
+                        const question = scaleQuestions[config.dataPointIndex];
+                        if (question) {
+                            this.showQuestionAnalysis(question.id, this.currentQuestionnaire?.id);
+                        }
+                    }
+                }
+            },
+            plotOptions: {
+                bar: { horizontal: true, barHeight: '50%' }
+            },
+            colors: scaleQuestions.map(q => q.isCritical ? '#ef4444' : this.getSatisfactionColor(parseFloat(q.avg_satisfaction) || 0)),
+            dataLabels: {
+                enabled: true,
+                formatter: val => val.toFixed(1),
+                style: { colors: ['#fff'] }
+            },
+            xaxis: {
+                categories: scaleQuestions.map((q, i) => `${i + 1}. ${q.text?.substring(0, 40)}...`),
+                max: 10
+            },
+            tooltip: {
+                y: {
+                    formatter: (val, { dataPointIndex }) => {
+                        const q = scaleQuestions[dataPointIndex];
+                        return `${val} (${q.total_responses} respostas)`;
+                    }
+                }
+            }
+        };
+
+        this.charts.questionsBarChart = new ApexCharts(container, options);
+        this.charts.questionsBarChart.render();
+    }
+
+    createQuestionsRadar(questions) {
+        const container = document.getElementById('questionsRadar');
+        if (!container) return;
+
+        this.destroyChart('questionsRadar');
+
+        const scaleQuestions = questions.filter(q => q.type === 'scale' && q.avg_satisfaction).slice(0, 8);
+        if (scaleQuestions.length < 3) {
+            container.innerHTML = '<div class="empty-chart"><i class="fas fa-spider"></i><p>Mínimo 3 perguntas</p></div>';
+            return;
+        }
+
+        const options = {
+            series: [{
+                name: 'Média',
+                data: scaleQuestions.map(q => parseFloat(q.avg_satisfaction)?.toFixed(1) || 0)
+            }],
+            chart: { type: 'radar', height: 300, toolbar: { show: false } },
+            xaxis: {
+                categories: scaleQuestions.map((q, i) => `P${i + 1}`)
+            },
+            yaxis: { max: 10 },
+            colors: ['#3b82f6'],
+            markers: { size: 4 },
+            fill: { opacity: 0.3 }
+        };
+
+        this.charts.questionsRadar = new ApexCharts(container, options);
+        this.charts.questionsRadar.render();
+    }
+
+    // ==================== MODAL DE ANÁLISE DE PERGUNTA ====================
+    async showQuestionAnalysis(questionId, questionnaireId) {
+        try {
+            const [analysis, stateComparison] = await Promise.all([
+                api.get(`/analytics/questions/${questionId}`),
+                api.get(`/analytics/questions/${questionId}/states`)
+            ]);
+
+            if (!analysis) return;
+
+            const modal = document.getElementById('modalQuestionAnalysis');
+            document.getElementById('questionAnalysisTitle').textContent = 'Análise da Pergunta';
+            document.getElementById('questionAnalysisText').textContent = analysis.question?.text || '';
+            document.getElementById('questionAnalysisType').textContent = this.getTypeLabel(analysis.question?.type);
+
+            const data = analysis.data || [];
+            document.getElementById('questionAnalysisCount').textContent = data.reduce((sum, d) => sum + parseInt(d.count || 0), 0);
+
+            if (analysis.question?.type === 'scale') {
+                const avg = data.reduce((sum, d) => sum + (d.value * d.count), 0) / data.reduce((sum, d) => sum + d.count, 0);
+                document.getElementById('questionAnalysisAvg').textContent = avg.toFixed(1);
+            } else {
+                document.getElementById('questionAnalysisAvg').textContent = '-';
+            }
+
+            this.createQuestionDistributionChart(analysis.question?.type, data);
+            this.createQuestionStateComparison(stateComparison || []);
+
+            Utils.openModal(modal);
+        } catch (error) {
+            console.error('Erro ao carregar análise:', error);
+        }
+    }
+
+    createQuestionDistributionChart(type, data) {
+        const container = document.getElementById('questionDistributionChart');
+        if (!container) return;
+
+        this.destroyChart('questionDistributionChart');
+
+        if (type === 'scale') {
+            const options = {
+                series: [{ name: 'Respostas', data: data.map(d => parseInt(d.count)) }],
+                chart: { type: 'bar', height: 250, toolbar: { show: false } },
+                colors: data.map(d => this.getSatisfactionColor(d.value)),
+                xaxis: { categories: data.map(d => d.value) },
+                plotOptions: { bar: { distributed: true } }
+            };
+            this.charts.questionDistributionChart = new ApexCharts(container, options);
+            this.charts.questionDistributionChart.render();
+        } else if (type === 'boolean') {
+            const options = {
+                series: data.map(d => parseInt(d.count)),
+                chart: { type: 'pie', height: 250 },
+                labels: data.map(d => d.value === 'true' ? 'Sim' : 'Não'),
+                colors: ['#10b981', '#ef4444']
+            };
+            this.charts.questionDistributionChart = new ApexCharts(container, options);
+            this.charts.questionDistributionChart.render();
+        }
+    }
+
+    createQuestionStateComparison(stateData) {
+        const container = document.getElementById('questionStateComparison');
+        if (!container) return;
+
+        this.destroyChart('questionStateComparison');
+
+        if (!stateData.length) {
+            container.innerHTML = '<p class="text-muted">Sem dados por estado</p>';
+            return;
+        }
+
+        const options = {
+            series: [{ name: 'Média', data: stateData.map(s => parseFloat(s.avg_satisfaction)?.toFixed(1) || 0) }],
+            chart: { type: 'bar', height: 200, toolbar: { show: false } },
+            colors: stateData.map(s => this.getSatisfactionColor(parseFloat(s.avg_satisfaction))),
+            xaxis: { categories: stateData.map(s => s.state) },
+            plotOptions: { bar: { distributed: true } },
+            yaxis: { max: 10 }
+        };
+
+        this.charts.questionStateComparison = new ApexCharts(container, options);
+        this.charts.questionStateComparison.render();
+    }
+
+    // ==================== HELPERS ====================
+    getSatisfactionColor(value) {
+        if (value >= 8) return '#059669';
+        if (value >= 6) return '#10b981';
+        if (value >= 4) return '#f59e0b';
+        return '#ef4444';
+    }
+
+    getTypeLabel(type) {
+        const labels = { scale: 'Escala', boolean: 'Sim/Não', text: 'Texto', multiple: 'Múltipla' };
+        return labels[type] || type;
+    }
+
+    destroyChart(chartName) {
+        if (this.charts[chartName]) {
+            this.charts[chartName].destroy();
+            this.charts[chartName] = null;
+        }
     }
 
     exportCSV() {
@@ -435,7 +1120,6 @@ class DashboardManager {
 
     showLoading() { Utils.show(document.getElementById('loadingOverlay')); }
     hideLoading() { Utils.hide(document.getElementById('loadingOverlay')); }
-    closeModal() { Utils.closeModal('modalDetalhesResposta'); }
 }
 
 // ==================== GERENCIADOR DE SUGESTÕES ====================

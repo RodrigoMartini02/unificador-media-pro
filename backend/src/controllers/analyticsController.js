@@ -62,6 +62,93 @@ const analyticsController = {
         } catch (error) {
             next(error);
         }
+    },
+
+    // ==================== NOVOS ENDPOINTS ====================
+
+    // Visão macro de todos os questionários
+    async getMacro(req, res, next) {
+        try {
+            const filters = extractFilters(req.query);
+            const macro = await analyticsService.getMacroAnalysis(filters);
+            res.json(macro);
+        } catch (error) {
+            next(error);
+        }
+    },
+
+    // NPS Score
+    async getNPS(req, res, next) {
+        try {
+            const filters = extractFilters(req.query);
+            const nps = await analyticsService.getNPSScore(filters);
+            res.json(nps);
+        } catch (error) {
+            next(error);
+        }
+    },
+
+    // Perguntas críticas (baixa satisfação)
+    async getCritical(req, res, next) {
+        try {
+            const filters = extractFilters(req.query);
+            const threshold = parseFloat(req.query.threshold) || 5;
+            const critical = await analyticsService.getCriticalQuestions(filters, threshold);
+            res.json(critical);
+        } catch (error) {
+            next(error);
+        }
+    },
+
+    // Análise detalhada por estado
+    async getStateDetail(req, res, next) {
+        try {
+            const { state } = req.params;
+            const filters = extractFilters(req.query);
+            const analysis = await analyticsService.getStateAnalysis(state, filters);
+            res.json(analysis);
+        } catch (error) {
+            next(error);
+        }
+    },
+
+    // Análise por município
+    async getMunicipalityDetail(req, res, next) {
+        try {
+            const { state, municipality } = req.params;
+            const filters = extractFilters(req.query);
+            const analysis = await analyticsService.getMunicipalityAnalysis(state, municipality, filters);
+            if (!analysis) {
+                return res.status(404).json({ error: 'Município não encontrado' });
+            }
+            res.json(analysis);
+        } catch (error) {
+            next(error);
+        }
+    },
+
+    // Análise de todas as perguntas de um questionário
+    async getQuestionnaireQuestions(req, res, next) {
+        try {
+            const { id } = req.params;
+            const filters = extractFilters(req.query);
+            const questions = await analyticsService.getQuestionnaireQuestionsAnalysis(id, filters);
+            res.json(questions);
+        } catch (error) {
+            next(error);
+        }
+    },
+
+    // Comparativo de pergunta entre estados
+    async getQuestionStateComparison(req, res, next) {
+        try {
+            const { questionId } = req.params;
+            const filters = extractFilters(req.query);
+            const comparison = await analyticsService.getQuestionStateComparison(questionId, filters);
+            res.json(comparison);
+        } catch (error) {
+            next(error);
+        }
     }
 };
 

@@ -180,121 +180,342 @@
             </header>
 
             <div class="section-content">
-                <!-- Cards de Estatísticas -->
-                <div class="stats-grid">
-                    <div class="stat-card">
-                        <div class="stat-icon">
-                            <i class="fas fa-chart-bar"></i>
+                <!-- Navegação Breadcrumb para Drill-Down -->
+                <div class="dashboard-breadcrumb hidden" id="dashboardBreadcrumb">
+                    <button class="btn btn-link breadcrumb-back" id="btnVoltarMacro">
+                        <i class="fas fa-arrow-left"></i>
+                        Voltar
+                    </button>
+                    <span class="breadcrumb-separator">/</span>
+                    <span class="breadcrumb-current" id="breadcrumbCurrent">Visão Geral</span>
+                </div>
+
+                <!-- ===== VISÃO MACRO (Dashboard Principal) ===== -->
+                <div class="dashboard-view" id="viewMacro">
+                    <!-- Cards de Estatísticas - Linha Superior -->
+                    <div class="stats-grid stats-grid-5">
+                        <div class="stat-card">
+                            <div class="stat-icon icon-primary">
+                                <i class="fas fa-chart-bar"></i>
+                            </div>
+                            <div class="stat-content">
+                                <div class="stat-value" id="totalRespostas">0</div>
+                                <div class="stat-label">Total de Respostas</div>
+                            </div>
                         </div>
-                        <div class="stat-content">
-                            <div class="stat-value" id="totalRespostas">0</div>
-                            <div class="stat-label">Total de Respostas</div>
+
+                        <div class="stat-card stat-card-nps" id="cardNPS">
+                            <div class="stat-icon icon-nps">
+                                <i class="fas fa-tachometer-alt"></i>
+                            </div>
+                            <div class="stat-content">
+                                <div class="stat-value nps-value" id="npsScore">0</div>
+                                <div class="stat-label">NPS Score</div>
+                            </div>
+                            <div class="nps-badge" id="npsBadge">Neutro</div>
+                        </div>
+
+                        <div class="stat-card">
+                            <div class="stat-icon icon-success">
+                                <i class="fas fa-smile"></i>
+                            </div>
+                            <div class="stat-content">
+                                <div class="stat-value" id="mediaSatisfacao">0</div>
+                                <div class="stat-label">Satisfação Média</div>
+                            </div>
+                        </div>
+
+                        <div class="stat-card">
+                            <div class="stat-icon icon-info">
+                                <i class="fas fa-map-marker-alt"></i>
+                            </div>
+                            <div class="stat-content">
+                                <div class="stat-value" id="totalLocais">0</div>
+                                <div class="stat-label">Estados/Locais</div>
+                            </div>
+                        </div>
+
+                        <div class="stat-card">
+                            <div class="stat-icon icon-warning">
+                                <i class="fas fa-exclamation-triangle"></i>
+                            </div>
+                            <div class="stat-content">
+                                <div class="stat-value" id="totalAlertas">0</div>
+                                <div class="stat-label">Alertas Críticos</div>
+                            </div>
                         </div>
                     </div>
 
-                    <div class="stat-card">
-                        <div class="stat-icon">
-                            <i class="fas fa-smile"></i>
+                    <!-- Gráficos e Análises - Layout Principal -->
+                    <div class="dashboard-grid">
+                        <!-- NPS Gauge -->
+                        <div class="chart-container chart-small">
+                            <div class="chart-header">
+                                <h3 class="chart-title">
+                                    <i class="fas fa-tachometer-alt"></i>
+                                    NPS Score
+                                </h3>
+                            </div>
+                            <div class="chart-body">
+                                <div id="npsGauge"></div>
+                                <div class="nps-legend">
+                                    <span class="legend-item promoters"><span class="dot"></span> Promotores</span>
+                                    <span class="legend-item passives"><span class="dot"></span> Passivos</span>
+                                    <span class="legend-item detractors"><span class="dot"></span> Detratores</span>
+                                </div>
+                            </div>
                         </div>
-                        <div class="stat-content">
-                            <div class="stat-value" id="mediaSatisfacao">0</div>
-                            <div class="stat-label">Satisfação Média</div>
-                        </div>
-                    </div>
 
-                    <div class="stat-card">
-                        <div class="stat-icon">
-                            <i class="fas fa-map-marker-alt"></i>
+                        <!-- Comparativo de Questionários -->
+                        <div class="chart-container chart-large">
+                            <div class="chart-header">
+                                <h3 class="chart-title">
+                                    <i class="fas fa-list-alt"></i>
+                                    Comparativo de Questionários
+                                </h3>
+                            </div>
+                            <div class="chart-body">
+                                <div id="questionnaireComparison"></div>
+                            </div>
                         </div>
-                        <div class="stat-content">
-                            <div class="stat-value" id="totalLocais">0</div>
-                            <div class="stat-label">Locais Avaliados</div>
-                        </div>
-                    </div>
 
-                    <div class="stat-card">
-                        <div class="stat-icon">
-                            <i class="fas fa-calendar-day"></i>
+                        <!-- Tendência Temporal -->
+                        <div class="chart-container chart-full">
+                            <div class="chart-header">
+                                <h3 class="chart-title">
+                                    <i class="fas fa-chart-line"></i>
+                                    Tendência de Respostas
+                                </h3>
+                            </div>
+                            <div class="chart-body">
+                                <div id="trendsChart"></div>
+                            </div>
                         </div>
-                        <div class="stat-content">
-                            <div class="stat-value" id="respostasHoje">0</div>
-                            <div class="stat-label">Respostas Hoje</div>
+
+                        <!-- Distribuição por Estados (Treemap) -->
+                        <div class="chart-container">
+                            <div class="chart-header">
+                                <h3 class="chart-title">
+                                    <i class="fas fa-map"></i>
+                                    Respostas por Estado
+                                </h3>
+                                <small class="chart-hint">Clique em um estado para detalhar</small>
+                            </div>
+                            <div class="chart-body">
+                                <div id="stateTreemap"></div>
+                            </div>
+                        </div>
+
+                        <!-- Satisfação Geral (Donut) -->
+                        <div class="chart-container">
+                            <div class="chart-header">
+                                <h3 class="chart-title">
+                                    <i class="fas fa-chart-pie"></i>
+                                    Distribuição de Satisfação
+                                </h3>
+                            </div>
+                            <div class="chart-body">
+                                <div id="satisfactionDonut"></div>
+                            </div>
+                        </div>
+
+                        <!-- Alertas de Perguntas Críticas -->
+                        <div class="chart-container chart-full">
+                            <div class="chart-header">
+                                <h3 class="chart-title">
+                                    <i class="fas fa-exclamation-circle"></i>
+                                    Perguntas Críticas
+                                </h3>
+                                <small class="chart-hint text-danger">Perguntas com satisfação abaixo de 5.0</small>
+                            </div>
+                            <div class="chart-body">
+                                <div class="critical-alerts-list" id="criticalAlerts">
+                                    <!-- Lista de alertas será preenchida via JavaScript -->
+                                </div>
+                                <div class="empty-alerts hidden" id="emptyAlerts">
+                                    <i class="fas fa-check-circle text-success"></i>
+                                    <p>Nenhuma pergunta crítica encontrada</p>
+                                </div>
+                            </div>
                         </div>
                     </div>
                 </div>
 
-                <!-- Gráficos e Análises -->
-                <div class="dashboard-grid">
-                    <!-- Gráfico de Satisfação Geral -->
-                    <div class="chart-container">
-                        <div class="chart-header">
-                            <h3 class="chart-title">Satisfação Geral</h3>
-                            <div class="chart-controls">
-                                <select class="chart-filter">
-                                    <option value="all">Todos os Períodos</option>
-                                    <option value="week">Esta Semana</option>
-                                    <option value="month">Este Mês</option>
-                                </select>
+                <!-- ===== VISÃO POR ESTADO (Drill-Down Nível 1) ===== -->
+                <div class="dashboard-view hidden" id="viewState">
+                    <div class="state-header">
+                        <h2 class="state-title" id="stateTitle">Estado</h2>
+                        <div class="state-stats">
+                            <span class="state-stat">
+                                <strong id="stateResponses">0</strong> respostas
+                            </span>
+                            <span class="state-stat">
+                                Média: <strong id="stateAvg">0</strong>
+                            </span>
+                            <span class="state-stat vs-overall" id="stateVsOverall">
+                                vs Geral: <strong>+0.0</strong>
+                            </span>
+                        </div>
+                    </div>
+
+                    <div class="dashboard-grid">
+                        <!-- Ranking de Municípios -->
+                        <div class="chart-container">
+                            <div class="chart-header">
+                                <h3 class="chart-title">
+                                    <i class="fas fa-trophy"></i>
+                                    Ranking de Municípios
+                                </h3>
+                            </div>
+                            <div class="chart-body">
+                                <div id="municipalityRanking"></div>
                             </div>
                         </div>
-                        <div class="chart-body">
-                            <canvas id="chartSatisfacao"></canvas>
-                        </div>
-                    </div>
 
-                    <!-- Ranking de Locais -->
-                    <div class="chart-container">
-                        <div class="chart-header">
-                            <h3 class="chart-title">Ranking por Locais</h3>
+                        <!-- Satisfação do Estado -->
+                        <div class="chart-container">
+                            <div class="chart-header">
+                                <h3 class="chart-title">
+                                    <i class="fas fa-chart-pie"></i>
+                                    Satisfação do Estado
+                                </h3>
+                            </div>
+                            <div class="chart-body">
+                                <div id="stateSatisfaction"></div>
+                            </div>
                         </div>
-                        <div class="chart-body">
-                            <div class="ranking-list" id="rankingLocais">
-                                <!-- Lista será preenchida via JavaScript -->
+
+                        <!-- Tendência do Estado -->
+                        <div class="chart-container chart-full">
+                            <div class="chart-header">
+                                <h3 class="chart-title">
+                                    <i class="fas fa-chart-area"></i>
+                                    Evolução Temporal
+                                </h3>
+                            </div>
+                            <div class="chart-body">
+                                <div id="stateTrends"></div>
+                            </div>
+                        </div>
+
+                        <!-- NPS do Estado -->
+                        <div class="chart-container chart-small">
+                            <div class="chart-header">
+                                <h3 class="chart-title">
+                                    <i class="fas fa-tachometer-alt"></i>
+                                    NPS do Estado
+                                </h3>
+                            </div>
+                            <div class="chart-body">
+                                <div id="stateNpsGauge"></div>
                             </div>
                         </div>
                     </div>
+                </div>
 
-                    <!-- Distribuição de Respostas -->
-                    <div class="chart-container">
-                        <div class="chart-header">
-                            <h3 class="chart-title">Distribuição de Respostas</h3>
-                        </div>
-                        <div class="chart-body">
-                            <canvas id="distribuicaoChart"></canvas>
+                <!-- ===== VISÃO POR QUESTIONÁRIO (Drill-Down Nível 2) ===== -->
+                <div class="dashboard-view hidden" id="viewQuestionnaire">
+                    <div class="questionnaire-header">
+                        <h2 class="questionnaire-title" id="questionnaireTitle">Questionário</h2>
+                        <div class="questionnaire-stats">
+                            <span class="q-stat">
+                                <strong id="qResponses">0</strong> respostas
+                            </span>
+                            <span class="q-stat">
+                                Média: <strong id="qAvg">0</strong>
+                            </span>
+                            <span class="q-stat">
+                                NPS: <strong id="qNps">0</strong>
+                            </span>
                         </div>
                     </div>
 
-                    <!-- Evolução Temporal -->
-                    <div class="chart-container">
-                        <div class="chart-header">
-                            <h3 class="chart-title">Evolução Temporal</h3>
+                    <div class="dashboard-grid">
+                        <!-- Média por Pergunta -->
+                        <div class="chart-container chart-full">
+                            <div class="chart-header">
+                                <h3 class="chart-title">
+                                    <i class="fas fa-question-circle"></i>
+                                    Média por Pergunta
+                                </h3>
+                                <small class="chart-hint">Clique em uma pergunta para ver detalhes</small>
+                            </div>
+                            <div class="chart-body">
+                                <div id="questionsBarChart"></div>
+                            </div>
                         </div>
-                        <div class="chart-body">
-                            <canvas id="evolucaoChart"></canvas>
-                        </div>
-                    </div>
 
-                    <!-- Análise por Perguntas -->
-                    <div class="chart-container">
-                        <div class="chart-header">
-                            <h3 class="chart-title">Análise por Perguntas</h3>
+                        <!-- Distribuição por Estado -->
+                        <div class="chart-container">
+                            <div class="chart-header">
+                                <h3 class="chart-title">
+                                    <i class="fas fa-map-marked"></i>
+                                    Respostas por Estado
+                                </h3>
+                            </div>
+                            <div class="chart-body">
+                                <div id="qStateDistribution"></div>
+                            </div>
                         </div>
-                        <div class="chart-body">
-                            <div class="perguntas-analysis" id="perguntasAnalysis">
-                                <!-- Análise será preenchida via JavaScript -->
+
+                        <!-- Radar de Perguntas -->
+                        <div class="chart-container">
+                            <div class="chart-header">
+                                <h3 class="chart-title">
+                                    <i class="fas fa-spider"></i>
+                                    Radar de Desempenho
+                                </h3>
+                            </div>
+                            <div class="chart-body">
+                                <div id="questionsRadar"></div>
                             </div>
                         </div>
                     </div>
+                </div>
+            </div>
 
-                    <!-- Comentários Recentes -->
-                    <div class="chart-container">
-                        <div class="chart-header">
-                            <h3 class="chart-title">Comentários Recentes</h3>
+            <!-- ===== MODAL: ANÁLISE DE PERGUNTA ===== -->
+            <div class="modal hidden" id="modalQuestionAnalysis">
+                <div class="modal-overlay" id="modalQuestionAnalysisOverlay"></div>
+                <div class="modal-dialog modal-lg">
+                    <div class="modal-content">
+                        <div class="modal-header">
+                            <h2 class="modal-title">
+                                <i class="fas fa-chart-bar"></i>
+                                <span id="questionAnalysisTitle">Análise da Pergunta</span>
+                            </h2>
+                            <button class="modal-close" id="modalQuestionAnalysisClose">
+                                <i class="fas fa-times"></i>
+                            </button>
                         </div>
-                        <div class="chart-body">
-                            <div class="comentarios-list" id="comentariosRecentes">
-                                <!-- Comentários serão preenchidos via JavaScript -->
+                        <div class="modal-body">
+                            <div class="question-info">
+                                <p class="question-text" id="questionAnalysisText"></p>
+                                <div class="question-meta">
+                                    <span class="meta-item">
+                                        <strong>Tipo:</strong> <span id="questionAnalysisType"></span>
+                                    </span>
+                                    <span class="meta-item">
+                                        <strong>Respostas:</strong> <span id="questionAnalysisCount"></span>
+                                    </span>
+                                    <span class="meta-item">
+                                        <strong>Média:</strong> <span id="questionAnalysisAvg"></span>
+                                    </span>
+                                </div>
                             </div>
+                            <div class="question-charts">
+                                <div class="chart-container">
+                                    <h4>Distribuição de Respostas</h4>
+                                    <div id="questionDistributionChart"></div>
+                                </div>
+                                <div class="chart-container">
+                                    <h4>Comparativo por Estado</h4>
+                                    <div id="questionStateComparison"></div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="modal-footer">
+                            <button class="btn btn-secondary" id="modalQuestionAnalysisFechar">Fechar</button>
                         </div>
                     </div>
                 </div>
@@ -1028,8 +1249,8 @@
     </div>
 
     <!-- ==================== SCRIPTS ==================== -->
-    <!-- Chart.js para gráficos -->
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/3.9.1/chart.min.js"></script>
+    <!-- ApexCharts para gráficos avançados -->
+    <script src="https://cdn.jsdelivr.net/npm/apexcharts"></script>
 
     <!-- Scripts da aplicação -->
     <script src="js/app.js"></script>

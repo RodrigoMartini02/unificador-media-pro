@@ -198,6 +198,15 @@ router.get('/analytics/locations', authMiddleware, analyticsController.getLocati
 router.get('/analytics/questions/:questionId', authMiddleware, analyticsController.getQuestionAnalysis);
 router.get('/analytics/questionnaire/:id', authMiddleware, analyticsController.getQuestionnaireAnalysis);
 
+// Novos endpoints de análise avançada
+router.get('/analytics/macro', authMiddleware, analyticsController.getMacro);
+router.get('/analytics/nps', authMiddleware, analyticsController.getNPS);
+router.get('/analytics/critical', authMiddleware, analyticsController.getCritical);
+router.get('/analytics/state/:state', authMiddleware, analyticsController.getStateDetail);
+router.get('/analytics/state/:state/municipality/:municipality', authMiddleware, analyticsController.getMunicipalityDetail);
+router.get('/analytics/questionnaire/:id/questions', authMiddleware, analyticsController.getQuestionnaireQuestions);
+router.get('/analytics/questions/:questionId/states', authMiddleware, analyticsController.getQuestionStateComparison);
+
 // ==================== EXPORT ROUTES ====================
 router.get('/export/csv', authMiddleware, exportController.exportCSV);
 router.get('/export/json', authMiddleware, exportController.exportJSON);
