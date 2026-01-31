@@ -123,7 +123,7 @@ const publicApi = {
     },
 
     async getQuestionnaireById(id) {
-        return this.request(`/public/questionnaire/${id}`);
+        return this.request(`/public/questionnaire-by-id/${id}`);
     },
 
     async submitResponse(data) {
@@ -397,6 +397,15 @@ class QuestionnaireManager {
         const questionElement = this.createQuestionElement(question);
         if (questionElement) {
             container.appendChild(questionElement);
+
+            // Adiciona classe active ao wrapper para torná-lo visível
+            const wrapper = container.querySelector('.question-wrapper');
+            if (wrapper) {
+                // Pequeno delay para permitir a animação
+                requestAnimationFrame(() => {
+                    wrapper.classList.add('active');
+                });
+            }
         }
 
         this.updateNavigationButtons();
@@ -497,7 +506,7 @@ class QuestionnaireManager {
         Utils.setText(template, '.question-text', question.text);
         const container = template.querySelector('.multiple-choice-container');
 
-        const options = question.options?.options || ['Excelente', 'Bom', 'Regular', 'Ruim', 'Péssimo'];
+        const options = question.options?.options || [];
 
         options.forEach((option, index) => {
             const optionTemplate = Utils.cloneTemplate('choiceOptionTemplate');

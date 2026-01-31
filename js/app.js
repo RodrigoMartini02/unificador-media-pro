@@ -352,8 +352,10 @@ class DashboardManager {
         if (this.filters.state) params.append('state', this.filters.state);
         if (this.filters.questionnaire_id) params.append('questionnaire_id', this.filters.questionnaire_id);
 
-        const responses = await api.get(`/responses?${params}`);
-        this.renderResponses(responses || []);
+        const result = await api.get(`/responses?${params}`);
+        // Backend retorna { data: [...], pagination: {...} }
+        const responses = result?.data || result || [];
+        this.renderResponses(responses);
     }
 
     renderResponses(responses) {
@@ -434,6 +436,102 @@ class DashboardManager {
     showLoading() { Utils.show(document.getElementById('loadingOverlay')); }
     hideLoading() { Utils.hide(document.getElementById('loadingOverlay')); }
     closeModal() { Utils.closeModal('modalDetalhesResposta'); }
+}
+
+// ==================== GERENCIADOR DE SUGESTÕES ====================
+class SuggestionsManager {
+    constructor() {
+        this.filters = { questionnaire_id: '' };
+    }
+
+    async init() {
+        this.bindEvents();
+        await this.load();
+    }
+
+    bindEvents() {
+        document.getElementById('filtroQuestionarioSugestoes')?.addEventListener('change', (e) => {
+            this.filters.questionnaire_id = e.target.value;
+            this.load();
+        });
+
+        document.getElementById('sortOrderSugestoes')?.addEventListener('change', () => {
+            this.load();
+        });
+    }
+
+    async load() {
+        try {
+            Utils.show(document.getElementById('loadingSugestoes'));
+            Utils.hide(document.getElementById('emptySugestoes'));
+
+            const params = new URLSearchParams();
+            if (this.filters.questionnaire_id) {
+                params.append('questionnaire_id', this.filters.questionnaire_id);
+            }
+
+            const result = await api.get(`/suggestions?${params}`);
+            const suggestions = result?.data || result || [];
+
+            // Atualizar contador
+            const countEl = document.getElementById('totalSugestoesCount');
+            if (countEl) {
+                const total = result?.pagination?.total || suggestions.length;
+                countEl.textContent = `${total} sugestões`;
+            }
+
+            this.render(suggestions);
+        } catch (error) {
+            console.error('Erro ao carregar sugestões:', error);
+            Utils.toast.error('Erro ao carregar sugestões');
+        } finally {
+            Utils.hide(document.getElementById('loadingSugestoes'));
+        }
+    }
+
+    render(suggestions) {
+        const container = document.getElementById('sugestoesGrid');
+        if (!container) return;
+
+        Utils.clearContainer(container);
+
+        if (!suggestions.length) {
+            Utils.show(document.getElementById('emptySugestoes'));
+            return;
+        }
+
+        Utils.hide(document.getElementById('emptySugestoes'));
+
+        suggestions.forEach(s => {
+            const card = Utils.cloneTemplate('template-sugestao-card');
+            if (!card) return;
+
+            const autorNome = s.is_anonymous ? 'Anônimo' : (s.respondent_name || 'Não informado');
+            const autorCargo = s.respondent_position || '-';
+            const local = s.municipality && s.state ? `${s.municipality}, ${s.state}` : '-';
+
+            Utils.setText(card, '.autor-nome', autorNome);
+            Utils.setText(card, '.autor-cargo', autorCargo);
+            Utils.setText(card, '.local-text', local);
+            Utils.setText(card, '.data-text', Utils.formatDate(s.submitted_at));
+            Utils.setText(card, '.pergunta-titulo', s.question_text || '');
+            Utils.setText(card, '.sugestao-texto', s.suggestion_text);
+            Utils.setText(card, '.nome-text', s.questionnaire_name || '');
+
+            container.appendChild(card);
+        });
+    }
+
+    async populateFilters(questionnaires) {
+        const select = document.getElementById('filtroQuestionarioSugestoes');
+        if (select && questionnaires) {
+            Utils.populateSelect(
+                select,
+                questionnaires.map(q => ({ value: q.id, label: q.name })),
+                'Todos os Questionários'
+            );
+        }
+    }
 }
 
 // ==================== GERENCIADOR DE LOCAIS ====================
@@ -1004,7 +1102,7 @@ class NavigationManager {
 }
 
 // ==================== INICIALIZAÇÃO ====================
-let dashboard, navigation, localManager, questionnaireManager;
+let dashboard, navigation, localManager, questionnaireManager, suggestionsManager;
 
 document.addEventListener('DOMContentLoaded', async () => {
     navigation = new NavigationManager();
@@ -1019,11 +1117,21 @@ document.addEventListener('DOMContentLoaded', async () => {
     localManager = new LocalManager();
     await localManager.init();
 
+    suggestionsManager = new SuggestionsManager();
+    await suggestionsManager.init();
+
+    // Popular filtro de questionários nas sugestões
+    const questionnaires = await api.get('/questionnaires');
+    if (questionnaires) {
+        suggestionsManager.populateFilters(questionnaires);
+    }
+
     // Expor para uso global
     window.dashboard = dashboard;
     window.api = api;
     window.localManager = localManager;
     window.questionnaireManager = questionnaireManager;
+    window.suggestionsManager = suggestionsManager;
 
     // Fechar modais com ESC (suporta hidden e active)
     document.addEventListener('keydown', (e) => {

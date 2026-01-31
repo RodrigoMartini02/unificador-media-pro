@@ -57,6 +57,26 @@ app.get('/api/health', (req, res) => {
     });
 });
 
+// Self-ping para manter o serviço acordado (evita hibernação no Render)
+if (process.env.NODE_ENV === 'production') {
+    const PING_INTERVAL = 14 * 60 * 1000; // 14 minutos (Render hiberna após 15)
+    const PING_URL = process.env.RENDER_EXTERNAL_URL || process.env.APP_URL || 'https://unificador-media-pro.onrender.com';
+
+    setInterval(async () => {
+        try {
+            const url = `${PING_URL}/api/health`;
+            const response = await fetch(url);
+            if (response.ok) {
+                console.log(`[Self-ping] OK - ${new Date().toISOString()}`);
+            }
+        } catch (error) {
+            console.log(`[Self-ping] Erro: ${error.message}`);
+        }
+    }, PING_INTERVAL);
+
+    console.log(`[Self-ping] Ativado - intervalo de 14 minutos - ${PING_URL}`);
+}
+
 // API routes
 app.use('/api', routes);
 

@@ -7,7 +7,8 @@
       "Bash(git commit -m \"$\\(cat <<''EOF''\nrefactor: Limpeza e atualização do sistema de questionários\n\n- Removidos arquivos duplicados e não utilizados\n- Atualizado login para usar CPF \\(documento: 08996441988\\)\n- Adicionado método findByCpf no UserModel\n- Corrigido authController para aceitar documento ou email\n- Configurado usuário padrão Rodrigo no seed\n\nCo-Authored-By: Claude Opus 4.5 <noreply@anthropic.com>\nEOF\n\\)\")",
       "Bash(git push:*)",
       "Bash(git branch:*)",
-      "Bash(git commit:*)"
+      "Bash(git commit:*)",
+      "Bash(dir:*)"
     ]
   }
 }

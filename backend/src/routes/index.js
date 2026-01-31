@@ -157,6 +157,39 @@ router.post('/public/submit', [
     validate
 ], responseController.submit);
 
+// ==================== SUGGESTIONS ROUTES ====================
+router.get('/suggestions', authMiddleware, async (req, res, next) => {
+    try {
+        const { ResponseAnswerModel } = require('../models');
+        const { questionnaire_id, state, page = 1, limit = 20 } = req.query;
+        const offset = (page - 1) * limit;
+
+        const suggestions = await ResponseAnswerModel.findTextAnswers({
+            questionnaire_id,
+            state,
+            limit: parseInt(limit),
+            offset
+        });
+
+        const total = await ResponseAnswerModel.countTextAnswers({
+            questionnaire_id,
+            state
+        });
+
+        res.json({
+            data: suggestions,
+            pagination: {
+                page: parseInt(page),
+                limit: parseInt(limit),
+                total,
+                pages: Math.ceil(total / limit)
+            }
+        });
+    } catch (error) {
+        next(error);
+    }
+});
+
 // ==================== ANALYTICS ROUTES ====================
 router.get('/analytics/overview', authMiddleware, analyticsController.getOverview);
 router.get('/analytics/satisfaction', authMiddleware, analyticsController.getSatisfaction);

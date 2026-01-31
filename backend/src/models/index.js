@@ -358,6 +358,93 @@ const ResponseAnswerModel = {
             results.push(result);
         }
         return results;
+    },
+
+    // Buscar respostas de texto (sugestões)
+    async findTextAnswers(filters = {}) {
+        let sql = `
+            SELECT
+                ra.id,
+                ra.value as suggestion_text,
+                ra.created_at,
+                q.text as question_text,
+                r.respondent_name,
+                r.respondent_position,
+                r.is_anonymous,
+                r.submitted_at,
+                qn.name as questionnaire_name,
+                l.state,
+                l.municipality
+            FROM response_answers ra
+            JOIN questions q ON ra.question_id = q.id
+            JOIN responses r ON ra.response_id = r.id
+            JOIN questionnaires qn ON r.questionnaire_id = qn.id
+            LEFT JOIN locations l ON r.location_id = l.id
+            WHERE q.type = 'text'
+            AND ra.value IS NOT NULL
+            AND ra.value != ''
+        `;
+        const params = [];
+        let paramCount = 0;
+
+        if (filters.questionnaire_id) {
+            paramCount++;
+            sql += ` AND r.questionnaire_id = $${paramCount}`;
+            params.push(filters.questionnaire_id);
+        }
+
+        if (filters.state) {
+            paramCount++;
+            sql += ` AND l.state = $${paramCount}`;
+            params.push(filters.state);
+        }
+
+        sql += ' ORDER BY r.submitted_at DESC';
+
+        if (filters.limit) {
+            paramCount++;
+            sql += ` LIMIT $${paramCount}`;
+            params.push(filters.limit);
+        }
+
+        if (filters.offset) {
+            paramCount++;
+            sql += ` OFFSET $${paramCount}`;
+            params.push(filters.offset);
+        }
+
+        const result = await query(sql, params);
+        return result.rows;
+    },
+
+    async countTextAnswers(filters = {}) {
+        let sql = `
+            SELECT COUNT(*)
+            FROM response_answers ra
+            JOIN questions q ON ra.question_id = q.id
+            JOIN responses r ON ra.response_id = r.id
+            LEFT JOIN locations l ON r.location_id = l.id
+            WHERE q.type = 'text'
+            AND ra.value IS NOT NULL
+            AND ra.value != ''
+        `;
+        const params = [];
+        let paramCount = 0;
+
+        if (filters.questionnaire_id) {
+            paramCount++;
+            sql += ` AND r.questionnaire_id = $${paramCount}`;
+            params.push(filters.questionnaire_id);
+        }
+
+        if (filters.state) {
+            paramCount++;
+            sql += ` AND l.state = $${paramCount}`;
+            params.push(filters.state);
+        }
+
+        const result = await query(sql, params);
+        return parseInt(result.rows[0].count);
     }
 };
 
