@@ -122,6 +122,10 @@ const publicApi = {
         return this.request('/public/questionnaire/active');
     },
 
+    async getQuestionnaireById(id) {
+        return this.request(`/public/questionnaire/${id}`);
+    },
+
     async submitResponse(data) {
         return this.request('/public/submit', {
             method: 'POST',
@@ -184,10 +188,26 @@ class QuestionnaireManager {
         }
     }
 
+    getQuestionnaireIdFromUrl() {
+        const urlParams = new URLSearchParams(window.location.search);
+        return urlParams.get('q');
+    }
+
     async loadActiveQuestionnaire() {
         try {
             this.showLoading();
-            const questionnaire = await publicApi.getActiveQuestionnaire();
+
+            // Verifica se há um ID de questionário na URL
+            const questionnaireId = this.getQuestionnaireIdFromUrl();
+            let questionnaire;
+
+            if (questionnaireId) {
+                // Carrega questionário específico pelo ID
+                questionnaire = await publicApi.getQuestionnaireById(questionnaireId);
+            } else {
+                // Carrega questionário ativo padrão
+                questionnaire = await publicApi.getActiveQuestionnaire();
+            }
 
             if (!questionnaire) {
                 this.showNoQuestionnaire('Nenhum questionário ativo encontrado. Ative um questionário no painel administrativo.');

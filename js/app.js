@@ -580,7 +580,11 @@ class LocalManager {
                 statusBadge.className = `status-badge ${q.is_active ? 'status-ativo' : 'status-inativo'}`;
             }
 
+            // Event listeners para botões de ação
+            row.querySelector('.btn-edit')?.addEventListener('click', () => this.editarVinculo(q));
+            row.querySelector('.btn-toggle')?.addEventListener('click', () => this.toggleVinculoStatus(q.id));
             row.querySelector('.btn-delete')?.addEventListener('click', () => this.removerLocal(q.id));
+            row.querySelector('.btn-copy-link')?.addEventListener('click', () => this.copiarLinkQuestionario(q.id));
             tbody.appendChild(row);
         });
     }
@@ -592,6 +596,45 @@ class LocalManager {
         await api.patch(`/questionnaires/${questionarioId}/location`, { state: null, municipality: null });
         Utils.toast.success('Local removido');
         await this.loadVinculos();
+    }
+
+    async editarVinculo(questionario) {
+        // Abre o modal de novo vinculo preenchido para edição
+        Utils.openModal('modalNovoVinculo');
+
+        // Preenche o select de questionário
+        const selectQuestionario = document.getElementById('selectQuestionario');
+        if (selectQuestionario) {
+            selectQuestionario.value = questionario.id;
+        }
+
+        Utils.toast.info('Edite os dados e salve');
+    }
+
+    async toggleVinculoStatus(questionarioId) {
+        const result = await api.patch(`/questionnaires/${questionarioId}/toggle`);
+        if (result) {
+            Utils.toast.success(`Vínculo ${result.is_active ? 'ativado' : 'desativado'}`);
+            await this.loadVinculos();
+        }
+    }
+
+    copiarLinkQuestionario(questionarioId) {
+        const baseUrl = window.location.origin;
+        const link = `${baseUrl}/quest.html?q=${questionarioId}`;
+
+        navigator.clipboard.writeText(link).then(() => {
+            Utils.toast.success('Link copiado para a área de transferência!');
+        }).catch(() => {
+            // Fallback para navegadores que não suportam clipboard API
+            const input = document.createElement('input');
+            input.value = link;
+            document.body.appendChild(input);
+            input.select();
+            document.execCommand('copy');
+            document.body.removeChild(input);
+            Utils.toast.success('Link copiado!');
+        });
     }
 }
 
