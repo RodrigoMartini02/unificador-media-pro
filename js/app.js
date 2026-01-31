@@ -48,16 +48,25 @@ const api = {
                 return null;
             }
 
-            return await response.json();
+            const data = await response.json();
+
+            // Se a resposta não for ok, retornar null ou array vazio dependendo do endpoint
+            if (!response.ok) {
+                console.warn(`API ${endpoint} returned ${response.status}:`, data);
+                return null;
+            }
+
+            return data;
         } catch (error) {
             console.error('API Error:', error);
-            throw error;
+            return null;
         }
     },
 
     get: (endpoint) => api.request(endpoint),
     post: (endpoint, data) => api.request(endpoint, { method: 'POST', body: JSON.stringify(data) }),
     put: (endpoint, data) => api.request(endpoint, { method: 'PUT', body: JSON.stringify(data) }),
+    patch: (endpoint, data) => api.request(endpoint, { method: 'PATCH', body: JSON.stringify(data) }),
     delete: (endpoint) => api.request(endpoint, { method: 'DELETE' }),
 
     setToken(token) {
@@ -137,9 +146,9 @@ class DashboardManager {
                 api.get('/questionnaires')
             ]);
 
-            this.updateStats(overview);
-            this.populateFilters(locations, questionnaires);
-            this.createCharts(satisfaction);
+            this.updateStats(overview || {});
+            this.populateFilters(locations || [], questionnaires || []);
+            this.createCharts(satisfaction || []);
             await this.loadResponses();
 
         } catch (error) {
@@ -195,8 +204,11 @@ class DashboardManager {
         const categories = ['Muito Insatisfeito', 'Insatisfeito', 'Neutro', 'Satisfeito', 'Muito Satisfeito'];
         const colors = ['#EF4444', '#F59E0B', '#6B7280', '#10B981', '#059669'];
 
+        // Garantir que data é um array
+        const safeData = Array.isArray(data) ? data : [];
+
         const values = categories.map(cat => {
-            const item = data?.find(d => d.category === cat);
+            const item = safeData.find(d => d.category === cat);
             return item ? parseInt(item.count) : 0;
         });
 
@@ -441,14 +453,14 @@ class LocalManager {
         }
 
         try {
-            // Criar o local no banco (se não existir) via API
-            const result = await api.post('/locations', {
+            // Vincular o local ao questionário via API
+            const result = await api.patch(`/questionnaires/${questionarioId}/location`, {
                 state: estado,
                 municipality: municipio
             });
 
             if (result && !result.error) {
-                Swal.fire('Sucesso', 'Local vinculado com sucesso!', 'success');
+                Swal.fire('Sucesso', 'Local vinculado ao questionário com sucesso!', 'success');
                 await this.loadLocaisCadastrados();
 
                 // Limpar formulário
@@ -460,30 +472,30 @@ class LocalManager {
             }
         } catch (error) {
             console.error('Erro ao vincular local:', error);
-            if (error.message?.includes('duplicate') || error.message?.includes('unique')) {
-                Swal.fire('Info', 'Este local já está cadastrado', 'info');
-            } else {
-                Swal.fire('Erro', 'Não foi possível vincular o local', 'error');
-            }
+            Swal.fire('Erro', 'Não foi possível vincular o local ao questionário', 'error');
         }
     }
 
     async loadLocaisCadastrados() {
         try {
-            const locations = await api.get('/locations');
-            this.renderLocaisCadastrados(locations || []);
+            // Carregar questionários com seus locais vinculados
+            const questionnaires = await api.get('/questionnaires');
+            this.renderLocaisCadastrados(questionnaires || []);
         } catch (error) {
-            console.error('Erro ao carregar locais:', error);
+            console.error('Erro ao carregar vínculos:', error);
         }
     }
 
-    renderLocaisCadastrados(locations) {
+    renderLocaisCadastrados(questionnaires) {
         const tbody = document.getElementById('corpoTabelaVinculos');
         const emptyMsg = document.getElementById('emptyVinculos');
 
         if (!tbody) return;
 
-        if (!locations.length) {
+        // Filtrar apenas questionários com local definido
+        const comLocal = questionnaires.filter(q => q.state && q.municipality);
+
+        if (!comLocal.length) {
             tbody.innerHTML = '';
             if (emptyMsg) emptyMsg.style.display = 'block';
             return;
@@ -491,42 +503,46 @@ class LocalManager {
 
         if (emptyMsg) emptyMsg.style.display = 'none';
 
-        tbody.innerHTML = locations.map(loc => `
+        tbody.innerHTML = comLocal.map(q => `
             <tr class="vinculo-row">
-                <td class="vinculo-questionario">-</td>
-                <td class="vinculo-estado">${loc.state}</td>
-                <td class="vinculo-municipio">${loc.municipality}</td>
+                <td class="vinculo-questionario">${q.name}</td>
+                <td class="vinculo-estado">${q.state}</td>
+                <td class="vinculo-municipio">${q.municipality}</td>
                 <td class="vinculo-status">
-                    <span class="status-badge status-ativo">Ativo</span>
+                    <span class="status-badge ${q.is_active ? 'status-ativo' : 'status-inativo'}">${q.is_active ? 'Ativo' : 'Inativo'}</span>
                 </td>
-                <td class="vinculo-data">${new Date(loc.created_at).toLocaleDateString('pt-BR')}</td>
+                <td class="vinculo-data">${new Date(q.created_at).toLocaleDateString('pt-BR')}</td>
                 <td class="vinculo-acoes">
-                    <button class="btn-icon btn-delete" title="Excluir" onclick="localManager.deleteLocal(${loc.id})">
-                        <i class="fas fa-trash"></i>
+                    <button class="btn-icon btn-delete" title="Remover local" onclick="localManager.removerLocal(${q.id})">
+                        <i class="fas fa-unlink"></i>
                     </button>
                 </td>
             </tr>
         `).join('');
     }
 
-    async deleteLocal(id) {
+    async removerLocal(questionarioId) {
         const result = await Swal.fire({
-            title: 'Excluir local?',
-            text: 'Esta ação não pode ser desfeita',
+            title: 'Remover local do questionário?',
+            text: 'O questionário ficará sem local definido',
             icon: 'warning',
             showCancelButton: true,
             confirmButtonColor: '#EF4444',
             cancelButtonText: 'Cancelar',
-            confirmButtonText: 'Sim, excluir'
+            confirmButtonText: 'Sim, remover'
         });
 
         if (result.isConfirmed) {
             try {
-                await api.delete(`/locations/${id}`);
-                Swal.fire('Excluído!', 'Local removido com sucesso', 'success');
+                // Definir location_id como null
+                await api.patch(`/questionnaires/${questionarioId}/location`, {
+                    state: null,
+                    municipality: null
+                });
+                Swal.fire('Removido!', 'Local desvinculado do questionário', 'success');
                 await this.loadLocaisCadastrados();
             } catch (error) {
-                Swal.fire('Erro', 'Não foi possível excluir o local', 'error');
+                Swal.fire('Erro', 'Não foi possível remover o local', 'error');
             }
         }
     }
