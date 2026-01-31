@@ -79,7 +79,8 @@ const LocationModel = {
 const QuestionnaireModel = {
     async findAll(activeOnly = false) {
         let sql = `
-            SELECT q.*, l.state, l.municipality
+            SELECT q.*, l.state, l.municipality,
+                   (SELECT COUNT(*) FROM questions WHERE questionnaire_id = q.id) as question_count
             FROM questionnaires q
             LEFT JOIN locations l ON q.location_id = l.id
         `;

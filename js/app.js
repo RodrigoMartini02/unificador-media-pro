@@ -554,6 +554,7 @@ class QuestionnaireManager {
         this.questionnaires = [];
         this.selectedQuestionnaireId = null;
         this.selectedQuestionnaire = null;
+        this.currentQuestions = [];
     }
 
     async init() {
@@ -619,17 +620,14 @@ class QuestionnaireManager {
 
         container.innerHTML = this.questionnaires.map(q => `
             <div class="questionario-item ${this.selectedQuestionnaireId === q.id ? 'selected' : ''}" data-id="${q.id}">
-                <div class="questionario-info">
+                <div class="questionario-info" onclick="questionnaireManager.selectQuestionario(${q.id})" style="cursor: pointer; flex: 1;">
                     <h4 class="questionario-nome">${q.name}</h4>
-                    <span class="questionario-total">${q.questions?.length || 0} perguntas</span>
+                    <span class="questionario-total">${q.question_count || 0} perguntas</span>
                     <span class="status-badge ${q.is_active ? 'status-ativo' : 'status-inativo'}">
                         ${q.is_active ? 'Ativo' : 'Inativo'}
                     </span>
                 </div>
                 <div class="questionario-actions">
-                    <button class="btn-icon btn-select" title="Selecionar" onclick="questionnaireManager.selectQuestionario(${q.id})">
-                        <i class="fas fa-hand-pointer"></i>
-                    </button>
                     <button class="btn-icon btn-toggle" title="${q.is_active ? 'Desativar' : 'Ativar'}" onclick="questionnaireManager.toggleActive(${q.id})">
                         <i class="fas fa-power-off"></i>
                     </button>
@@ -724,6 +722,9 @@ class QuestionnaireManager {
             'multiple': 'Múltipla Escolha'
         };
 
+        // Guardar as perguntas para uso no edit
+        this.currentQuestions = questions;
+
         container.innerHTML = questions.map((q, index) => `
             <div class="pergunta-item" data-id="${q.id}">
                 <div class="pergunta-header">
@@ -732,6 +733,9 @@ class QuestionnaireManager {
                 </div>
                 <div class="pergunta-texto">${q.text}</div>
                 <div class="pergunta-actions">
+                    <button class="btn-icon btn-edit" title="Editar" onclick="questionnaireManager.editPergunta(${q.id})">
+                        <i class="fas fa-edit"></i>
+                    </button>
                     <button class="btn-icon btn-delete" title="Excluir" onclick="questionnaireManager.deletePergunta(${q.id})">
                         <i class="fas fa-trash"></i>
                     </button>
@@ -848,6 +852,67 @@ class QuestionnaireManager {
             } catch (error) {
                 console.error('Erro ao excluir pergunta:', error);
                 Swal.fire('Erro', 'Não foi possível excluir a pergunta', 'error');
+            }
+        }
+    }
+
+    async editPergunta(questionId) {
+        // Buscar a pergunta atual
+        const pergunta = this.currentQuestions?.find(q => q.id === questionId);
+        if (!pergunta) {
+            Swal.fire('Erro', 'Pergunta não encontrada', 'error');
+            return;
+        }
+
+        const textoAtual = pergunta.text;
+        const tipoAtual = pergunta.type;
+
+        const { value: formValues } = await Swal.fire({
+            title: 'Editar Pergunta',
+            html: `
+                <div style="text-align: left;">
+                    <label style="display: block; margin-bottom: 5px; font-weight: 500;">Texto da Pergunta</label>
+                    <textarea id="swal-texto" class="swal2-textarea" style="width: 100%; min-height: 80px;">${textoAtual}</textarea>
+                    <label style="display: block; margin-bottom: 5px; margin-top: 15px; font-weight: 500;">Tipo de Resposta</label>
+                    <select id="swal-tipo" class="swal2-select" style="width: 100%;">
+                        <option value="scale" ${tipoAtual === 'scale' ? 'selected' : ''}>Escala</option>
+                        <option value="boolean" ${tipoAtual === 'boolean' ? 'selected' : ''}>Sim/Não</option>
+                        <option value="text" ${tipoAtual === 'text' ? 'selected' : ''}>Texto</option>
+                    </select>
+                </div>
+            `,
+            focusConfirm: false,
+            showCancelButton: true,
+            confirmButtonText: 'Salvar',
+            cancelButtonText: 'Cancelar',
+            confirmButtonColor: '#3b82f6',
+            preConfirm: () => {
+                const texto = document.getElementById('swal-texto').value.trim();
+                const tipo = document.getElementById('swal-tipo').value;
+                if (!texto) {
+                    Swal.showValidationMessage('Digite o texto da pergunta');
+                    return false;
+                }
+                return { texto, tipo };
+            }
+        });
+
+        if (formValues) {
+            try {
+                const result = await api.put(
+                    `/questionnaires/${this.selectedQuestionnaireId}/questions/${questionId}`,
+                    { text: formValues.texto, type: formValues.tipo }
+                );
+
+                if (result && !result.error) {
+                    Swal.fire('Sucesso', 'Pergunta atualizada com sucesso!', 'success');
+                    await this.selectQuestionario(this.selectedQuestionnaireId);
+                } else {
+                    throw new Error(result?.error || 'Erro ao atualizar');
+                }
+            } catch (error) {
+                console.error('Erro ao editar pergunta:', error);
+                Swal.fire('Erro', 'Não foi possível atualizar a pergunta', 'error');
             }
         }
     }

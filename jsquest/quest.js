@@ -126,14 +126,19 @@ class QuestionnaireManager {
             this.showLoading();
             const questionnaire = await publicApi.getActiveQuestionnaire();
 
-            if (!questionnaire || !questionnaire.questions || questionnaire.questions.length === 0) {
-                this.showNoQuestionnaire('Nenhum questionário disponível no momento.');
+            if (!questionnaire) {
+                this.showNoQuestionnaire('Nenhum questionário ativo encontrado. Ative um questionário no painel administrativo.');
+                return;
+            }
+
+            if (!questionnaire.questions || questionnaire.questions.length === 0) {
+                this.showNoQuestionnaire('O questionário ativo não possui perguntas. Adicione perguntas no painel administrativo.');
                 return;
             }
 
             // Verificar se o questionário tem local definido
             if (!questionnaire.state || !questionnaire.municipality) {
-                this.showNoQuestionnaire('Este questionário ainda não tem um local definido. Entre em contato com o administrador.');
+                this.showNoQuestionnaire('O questionário ativo não tem um local definido. Vincule um local em "Definir Local" no painel administrativo.');
                 return;
             }
 
@@ -156,7 +161,11 @@ class QuestionnaireManager {
 
         } catch (error) {
             console.error('Erro ao carregar questionário:', error);
-            this.showNoQuestionnaire('Erro ao carregar questionário. Tente novamente mais tarde.');
+            if (error.status === 404) {
+                this.showNoQuestionnaire('Nenhum questionário ativo encontrado. Ative um questionário no painel administrativo.');
+            } else {
+                this.showNoQuestionnaire('Erro ao carregar questionário. Tente novamente mais tarde.');
+            }
         } finally {
             this.hideLoading();
         }
