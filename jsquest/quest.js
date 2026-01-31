@@ -1,14 +1,98 @@
 /**
  * Sistema de Questionários Públicos
  * Gerencia identificação e envio de respostas via API
- * O local é definido pelo admin no questionário
  */
 
-// ================================================================
-// CONFIGURAÇÃO DA API
-// ================================================================
-
 const API_URL = '/api';
+
+// ==================== UTILITÁRIOS ====================
+
+const Utils = {
+    toast: {
+        success: (msg) => Utils.showToast(msg, 'success'),
+        error: (msg) => Utils.showToast(msg, 'error'),
+        warning: (msg) => Utils.showToast(msg, 'warning'),
+        info: (msg) => Utils.showToast(msg, 'info')
+    },
+
+    showToast(message, type = 'info') {
+        let container = document.getElementById('toastContainer');
+        if (!container) {
+            container = document.createElement('div');
+            container.id = 'toastContainer';
+            container.className = 'toast-container';
+            document.body.appendChild(container);
+        }
+
+        const toast = document.createElement('div');
+        toast.className = `toast toast-${type}`;
+
+        const icons = {
+            success: 'fa-check-circle',
+            error: 'fa-times-circle',
+            warning: 'fa-exclamation-triangle',
+            info: 'fa-info-circle'
+        };
+
+        const icon = document.createElement('i');
+        icon.className = `fas ${icons[type]}`;
+
+        const span = document.createElement('span');
+        span.textContent = message;
+
+        const closeBtn = document.createElement('button');
+        closeBtn.className = 'toast-close';
+        closeBtn.innerHTML = '<i class="fas fa-times"></i>';
+        closeBtn.onclick = () => toast.remove();
+
+        toast.appendChild(icon);
+        toast.appendChild(span);
+        toast.appendChild(closeBtn);
+        container.appendChild(toast);
+
+        setTimeout(() => toast.classList.add('show'), 10);
+        setTimeout(() => toast.remove(), 4000);
+    },
+
+    async confirm(_, message) {
+        return new Promise(resolve => {
+            const modal = document.getElementById('responseModal');
+            const modalText = document.getElementById('responseModalText');
+            const confirmBtn = document.getElementById('confirmSubmitBtn');
+            const cancelBtn = document.getElementById('cancelSubmitBtn');
+
+            if (modalText) modalText.textContent = message;
+            modal.classList.remove('hidden');
+
+            const cleanup = () => {
+                modal.classList.add('hidden');
+                confirmBtn.removeEventListener('click', onConfirm);
+                cancelBtn.removeEventListener('click', onCancel);
+            };
+
+            const onConfirm = () => { cleanup(); resolve(true); };
+            const onCancel = () => { cleanup(); resolve(false); };
+
+            confirmBtn.addEventListener('click', onConfirm);
+            cancelBtn.addEventListener('click', onCancel);
+        });
+    },
+
+    cloneTemplate(templateId) {
+        const template = document.getElementById(templateId);
+        return template ? template.content.cloneNode(true) : null;
+    },
+
+    setText(parent, selector, text) {
+        const el = parent.querySelector(selector);
+        if (el) el.textContent = text;
+    },
+
+    show(el) { el?.classList.remove('hidden'); },
+    hide(el) { el?.classList.add('hidden'); }
+};
+
+// ==================== API PÚBLICA ====================
 
 const publicApi = {
     async request(endpoint, options = {}) {
@@ -44,9 +128,7 @@ const publicApi = {
     }
 };
 
-// ================================================================
-// GERENCIADOR DE QUESTIONÁRIOS
-// ================================================================
+// ==================== GERENCIADOR DE QUESTIONÁRIOS ====================
 
 class QuestionnaireManager {
     constructor() {
@@ -62,8 +144,6 @@ class QuestionnaireManager {
         this.init();
     }
 
-    // ==================== INICIALIZAÇÃO ====================
-
     async init() {
         this.setupEventListeners();
         this.setCurrentDate();
@@ -71,38 +151,21 @@ class QuestionnaireManager {
     }
 
     setupEventListeners() {
-        // Identificação
         document.querySelectorAll('input[name="identify"]').forEach(radio => {
             radio.addEventListener('change', (e) => this.onIdentificationChoice(e.target.value));
         });
 
-        // Campos de identificação
         const nameField = document.getElementById('respondentName');
         const positionField = document.getElementById('respondentPosition');
 
-        if (nameField) {
-            nameField.addEventListener('input', () => this.validateStartButton());
-        }
-        if (positionField) {
-            positionField.addEventListener('input', () => this.validateStartButton());
-        }
+        if (nameField) nameField.addEventListener('input', () => this.validateStartButton());
+        if (positionField) positionField.addEventListener('input', () => this.validateStartButton());
 
-        // Botão iniciar questionário
-        const startBtn = document.getElementById('startQuestionnaireBtn');
-        if (startBtn) {
-            startBtn.addEventListener('click', () => this.startQuestionnaire());
-        }
+        document.getElementById('startQuestionnaireBtn')?.addEventListener('click', () => this.startQuestionnaire());
+        document.getElementById('prevQuestionBtn')?.addEventListener('click', () => this.previousQuestion());
+        document.getElementById('nextQuestionBtn')?.addEventListener('click', () => this.nextQuestion());
+        document.getElementById('submitQuestionnaireBtn')?.addEventListener('click', () => this.showSubmitConfirmation());
 
-        // Navegação
-        const prevBtn = document.getElementById('prevQuestionBtn');
-        const nextBtn = document.getElementById('nextQuestionBtn');
-        const submitBtn = document.getElementById('submitQuestionnaireBtn');
-
-        if (prevBtn) prevBtn.addEventListener('click', () => this.previousQuestion());
-        if (nextBtn) nextBtn.addEventListener('click', () => this.nextQuestion());
-        if (submitBtn) submitBtn.addEventListener('click', () => this.showSubmitConfirmation());
-
-        // Modal de confirmação
         this.setupConfirmationModal();
     }
 
@@ -119,8 +182,6 @@ class QuestionnaireManager {
         }
     }
 
-    // ==================== CARREGAR QUESTIONÁRIO ====================
-
     async loadActiveQuestionnaire() {
         try {
             this.showLoading();
@@ -136,7 +197,6 @@ class QuestionnaireManager {
                 return;
             }
 
-            // Verificar se o questionário tem local definido
             if (!questionnaire.state || !questionnaire.municipality) {
                 this.showNoQuestionnaire('O questionário ativo não tem um local definido. Vincule um local em "Definir Local" no painel administrativo.');
                 return;
@@ -144,20 +204,13 @@ class QuestionnaireManager {
 
             this.currentQuestionnaire = questionnaire;
 
-            // Atualizar título
             const subtitle = document.getElementById('questionnaireSubtitle');
-            if (subtitle) {
-                subtitle.textContent = questionnaire.name || 'Pesquisa de Satisfação';
-            }
+            if (subtitle) subtitle.textContent = questionnaire.name || 'Pesquisa de Satisfação';
 
-            // Atualizar local na tela
             const locationInfo = document.getElementById('locationInfo');
-            if (locationInfo) {
-                locationInfo.textContent = `${questionnaire.municipality}, ${questionnaire.state}`;
-            }
+            if (locationInfo) locationInfo.textContent = `${questionnaire.municipality}, ${questionnaire.state}`;
 
-            // Mostrar seção de identificação
-            document.getElementById('identificationSection')?.classList.remove('hidden');
+            Utils.show(document.getElementById('identificationSection'));
 
         } catch (error) {
             console.error('Erro ao carregar questionário:', error);
@@ -172,34 +225,52 @@ class QuestionnaireManager {
     }
 
     showNoQuestionnaire(message) {
-        // Ocultar seção de identificação
-        document.getElementById('identificationSection')?.classList.add('hidden');
+        Utils.hide(document.getElementById('identificationSection'));
 
-        // Mostrar mensagem de erro
         const container = document.querySelector('.questionnaire-container');
-        if (container) {
-            container.innerHTML = `
-                <div class="questionnaire-header">
-                    <h1 id="questionnaireSubtitle">Questionário Indisponível</h1>
-                </div>
-                <div class="no-template-message">
-                    <h3><i class="fas fa-exclamation-triangle"></i></h3>
-                    <p>${message}</p>
-                </div>
-            `;
+        if (!container) return;
+
+        container.textContent = '';
+
+        const template = Utils.cloneTemplate('noQuestionnaireTemplate');
+        if (template) {
+            Utils.setText(template, '.error-message-text', message);
+            container.appendChild(template);
+        } else {
+            const header = document.createElement('div');
+            header.className = 'questionnaire-header';
+
+            const title = document.createElement('h1');
+            title.textContent = 'Questionário Indisponível';
+            header.appendChild(title);
+
+            const msgDiv = document.createElement('div');
+            msgDiv.className = 'no-template-message';
+
+            const icon = document.createElement('h3');
+            const iconEl = document.createElement('i');
+            iconEl.className = 'fas fa-exclamation-triangle';
+            icon.appendChild(iconEl);
+
+            const text = document.createElement('p');
+            text.textContent = message;
+
+            msgDiv.appendChild(icon);
+            msgDiv.appendChild(text);
+
+            container.appendChild(header);
+            container.appendChild(msgDiv);
         }
     }
-
-    // ==================== IDENTIFICAÇÃO ====================
 
     onIdentificationChoice(choice) {
         const identificationFields = document.getElementById('identificationFields');
 
         if (choice === 'yes') {
-            identificationFields?.classList.remove('hidden');
+            Utils.show(identificationFields);
             this.userInfo.isAnonymous = false;
         } else {
-            identificationFields?.classList.add('hidden');
+            Utils.hide(identificationFields);
             this.userInfo.isAnonymous = true;
             this.userInfo.name = '';
             this.userInfo.position = '';
@@ -212,7 +283,6 @@ class QuestionnaireManager {
         const startBtn = document.getElementById('startQuestionnaireBtn');
         if (!startBtn) return;
 
-        // Verificar identificação
         const identifyYes = document.getElementById('identifyYes');
         const identifyNo = document.getElementById('identifyNo');
         const identificationSelected = identifyYes?.checked || identifyNo?.checked;
@@ -237,29 +307,19 @@ class QuestionnaireManager {
             }
         }
 
-        // Habilitar/desabilitar botão
         const canStart = identificationSelected && identificationValid && this.currentQuestionnaire;
-
         startBtn.disabled = !canStart;
         startBtn.classList.toggle('disabled', !canStart);
     }
 
-    // ==================== QUESTIONÁRIO ====================
-
     startQuestionnaire() {
         if (!this.currentQuestionnaire) {
-            this.showError('Nenhum questionário disponível no momento.');
+            Utils.toast.error('Nenhum questionário disponível no momento.');
             return;
         }
 
-        // Ocultar seção de identificação
-        document.getElementById('identificationSection')?.classList.add('hidden');
-
-        // Mostrar conteúdo do questionário
-        const questionnaireContent = document.getElementById('questionnaireContent');
-        if (questionnaireContent) {
-            questionnaireContent.classList.remove('hidden');
-        }
+        Utils.hide(document.getElementById('identificationSection'));
+        Utils.show(document.getElementById('questionnaireContent'));
 
         this.createProgressIndicator();
         this.showQuestion(0);
@@ -269,13 +329,20 @@ class QuestionnaireManager {
         const progressIndicator = document.getElementById('progressIndicator');
         if (!progressIndicator || !this.currentQuestionnaire) return;
 
-        progressIndicator.innerHTML = '';
+        progressIndicator.textContent = '';
 
         this.currentQuestionnaire.questions.forEach((_, index) => {
-            const dot = document.createElement('div');
-            dot.className = 'progress-dot';
-            if (index === 0) dot.classList.add('active');
-            progressIndicator.appendChild(dot);
+            const template = Utils.cloneTemplate('progressDotTemplate');
+            if (template) {
+                const dot = template.querySelector('.progress-dot');
+                if (index === 0) dot.classList.add('active');
+                progressIndicator.appendChild(template);
+            } else {
+                const dot = document.createElement('div');
+                dot.className = 'progress-dot';
+                if (index === 0) dot.classList.add('active');
+                progressIndicator.appendChild(dot);
+            }
         });
     }
 
@@ -303,175 +370,189 @@ class QuestionnaireManager {
 
         if (!container) return;
 
-        container.innerHTML = '';
+        container.textContent = '';
 
-        const questionElement = this.createQuestionElement(question, questionIndex);
-        container.appendChild(questionElement);
+        const questionElement = this.createQuestionElement(question);
+        if (questionElement) {
+            container.appendChild(questionElement);
+        }
 
         this.updateNavigationButtons();
         this.updateProgressIndicator();
 
-        // Scroll to top
         window.scrollTo({ top: 0, behavior: 'smooth' });
     }
 
-    createQuestionElement(question, questionIndex) {
+    createQuestionElement(question) {
         const questionName = `question_${question.id}`;
 
         switch (question.type) {
             case 'scale':
                 return this.createScaleQuestion(question, questionName);
-
             case 'multiple':
                 return this.createMultipleChoiceQuestion(question, questionName);
-
             case 'boolean':
                 return this.createBooleanQuestion(question, questionName);
-
             case 'text':
                 return this.createTextQuestion(question, questionName);
-
             default:
                 return this.createScaleQuestion(question, questionName);
         }
     }
 
     createScaleQuestion(question, questionName) {
-        const template = document.getElementById('scaleQuestionTemplate');
-        const element = template.content.cloneNode(true);
+        const template = Utils.cloneTemplate('scaleQuestionTemplate');
+        if (!template) return null;
 
-        element.querySelector('.question-text').textContent = question.text;
-        const container = element.querySelector('.rating-container');
+        Utils.setText(template, '.question-text', question.text);
+        const container = template.querySelector('.rating-container');
 
-        // Criar escala de 1 a 10
         for (let i = 1; i <= 10; i++) {
-            const scaleTemplate = document.getElementById('scaleButtonTemplate');
-            const scaleElement = scaleTemplate.content.cloneNode(true);
+            const scaleTemplate = Utils.cloneTemplate('scaleButtonTemplate');
+            if (!scaleTemplate) continue;
 
-            const input = scaleElement.querySelector('.scale-input');
-            const label = scaleElement.querySelector('.scale-label');
+            const input = scaleTemplate.querySelector('.scale-input');
+            const label = scaleTemplate.querySelector('.scale-label');
 
-            input.name = questionName;
-            input.value = i;
-            input.id = `${questionName}_${i}`;
-            input.required = question.is_required;
+            if (input) {
+                input.name = questionName;
+                input.value = i;
+                input.id = `${questionName}_${i}`;
+                input.required = question.is_required;
 
-            label.setAttribute('for', `${questionName}_${i}`);
-            label.textContent = i;
+                if (this.responses[questionName]?.value === i.toString()) {
+                    input.checked = true;
+                }
 
-            // Restaurar resposta se existir
-            if (this.responses[questionName]?.value === i.toString()) {
-                input.checked = true;
+                input.addEventListener('change', () => {
+                    this.responses[questionName] = {
+                        question_id: question.id,
+                        value: i.toString(),
+                        numeric_value: i
+                    };
+
+                    setTimeout(() => {
+                        if (this.currentQuestionIndex < this.currentQuestionnaire.questions.length - 1) {
+                            this.nextQuestion();
+                        }
+                    }, 300);
+                });
             }
 
-            input.addEventListener('change', () => {
-                this.responses[questionName] = {
-                    question_id: question.id,
-                    value: i.toString(),
-                    numeric_value: i
-                };
+            if (label) {
+                label.setAttribute('for', `${questionName}_${i}`);
+                label.textContent = i;
+            }
 
-                // Auto-avançar
-                setTimeout(() => {
-                    if (this.currentQuestionIndex < this.currentQuestionnaire.questions.length - 1) {
-                        this.nextQuestion();
-                    }
-                }, 300);
-            });
-
-            container.appendChild(scaleElement);
+            container.appendChild(scaleTemplate);
         }
 
-        // Labels para os extremos
-        const labelsDiv = document.createElement('div');
-        labelsDiv.className = 'scale-labels';
-        labelsDiv.innerHTML = `
-            <span>Muito Insatisfeito</span>
-            <span>Muito Satisfeito</span>
-        `;
-        container.appendChild(labelsDiv);
+        const labelsTemplate = Utils.cloneTemplate('scaleLabelsTemplate');
+        if (labelsTemplate) {
+            container.appendChild(labelsTemplate);
+        } else {
+            const labelsDiv = document.createElement('div');
+            labelsDiv.className = 'scale-labels';
 
-        return element;
+            const minLabel = document.createElement('span');
+            minLabel.textContent = 'Muito Insatisfeito';
+
+            const maxLabel = document.createElement('span');
+            maxLabel.textContent = 'Muito Satisfeito';
+
+            labelsDiv.appendChild(minLabel);
+            labelsDiv.appendChild(maxLabel);
+            container.appendChild(labelsDiv);
+        }
+
+        return template;
     }
 
     createMultipleChoiceQuestion(question, questionName) {
-        const template = document.getElementById('multipleChoiceQuestionTemplate');
-        const element = template.content.cloneNode(true);
+        const template = Utils.cloneTemplate('multipleChoiceQuestionTemplate');
+        if (!template) return null;
 
-        element.querySelector('.question-text').textContent = question.text;
-        const container = element.querySelector('.multiple-choice-container');
+        Utils.setText(template, '.question-text', question.text);
+        const container = template.querySelector('.multiple-choice-container');
 
         const options = question.options?.options || ['Excelente', 'Bom', 'Regular', 'Ruim', 'Péssimo'];
 
         options.forEach((option, index) => {
-            const optionTemplate = document.getElementById('choiceOptionTemplate');
-            const optionElement = optionTemplate.content.cloneNode(true);
+            const optionTemplate = Utils.cloneTemplate('choiceOptionTemplate');
+            if (!optionTemplate) return;
 
-            const input = optionElement.querySelector('.form-check-input');
-            const label = optionElement.querySelector('.form-check-label');
+            const input = optionTemplate.querySelector('.form-check-input');
+            const label = optionTemplate.querySelector('.form-check-label');
 
-            input.name = questionName;
-            input.value = option;
-            input.id = `${questionName}_${index}`;
-            input.required = question.is_required;
+            if (input) {
+                input.name = questionName;
+                input.value = option;
+                input.id = `${questionName}_${index}`;
+                input.required = question.is_required;
 
-            label.setAttribute('for', `${questionName}_${index}`);
-            label.textContent = option;
+                if (this.responses[questionName]?.value === option) {
+                    input.checked = true;
+                }
 
-            // Restaurar resposta
-            if (this.responses[questionName]?.value === option) {
-                input.checked = true;
+                input.addEventListener('change', () => {
+                    this.responses[questionName] = {
+                        question_id: question.id,
+                        value: option,
+                        numeric_value: null
+                    };
+
+                    setTimeout(() => {
+                        if (this.currentQuestionIndex < this.currentQuestionnaire.questions.length - 1) {
+                            this.nextQuestion();
+                        }
+                    }, 300);
+                });
             }
 
-            input.addEventListener('change', () => {
-                this.responses[questionName] = {
-                    question_id: question.id,
-                    value: option,
-                    numeric_value: null
-                };
+            if (label) {
+                label.setAttribute('for', `${questionName}_${index}`);
+                label.textContent = option;
+            }
 
-                setTimeout(() => {
-                    if (this.currentQuestionIndex < this.currentQuestionnaire.questions.length - 1) {
-                        this.nextQuestion();
-                    }
-                }, 300);
-            });
-
-            container.appendChild(optionElement);
+            container.appendChild(optionTemplate);
         });
 
-        return element;
+        return template;
     }
 
     createBooleanQuestion(question, questionName) {
-        const template = document.getElementById('booleanQuestionTemplate');
-        const element = template.content.cloneNode(true);
+        const template = Utils.cloneTemplate('booleanQuestionTemplate');
+        if (!template) return null;
 
-        element.querySelector('.question-text').textContent = question.text;
+        Utils.setText(template, '.question-text', question.text);
 
-        const trueOption = element.querySelector('.true-option');
-        const falseOption = element.querySelector('.false-option');
-        const trueLabel = element.querySelector('.true-label');
-        const falseLabel = element.querySelector('.false-label');
+        const trueOption = template.querySelector('.true-option');
+        const falseOption = template.querySelector('.false-option');
+        const trueLabel = template.querySelector('.true-label');
+        const falseLabel = template.querySelector('.false-label');
 
-        trueOption.name = questionName;
-        falseOption.name = questionName;
-        trueOption.id = `${questionName}_true`;
-        falseOption.id = `${questionName}_false`;
-        trueOption.required = question.is_required;
-        falseOption.required = question.is_required;
+        if (trueOption) {
+            trueOption.name = questionName;
+            trueOption.id = `${questionName}_true`;
+            trueOption.required = question.is_required;
+        }
 
-        trueLabel.setAttribute('for', `${questionName}_true`);
-        falseLabel.setAttribute('for', `${questionName}_false`);
+        if (falseOption) {
+            falseOption.name = questionName;
+            falseOption.id = `${questionName}_false`;
+            falseOption.required = question.is_required;
+        }
 
-        // Restaurar resposta
-        if (this.responses[questionName]?.value === 'true') {
+        if (trueLabel) trueLabel.setAttribute('for', `${questionName}_true`);
+        if (falseLabel) falseLabel.setAttribute('for', `${questionName}_false`);
+
+        if (this.responses[questionName]?.value === 'true' && trueOption) {
             trueOption.checked = true;
-        } else if (this.responses[questionName]?.value === 'false') {
+        } else if (this.responses[questionName]?.value === 'false' && falseOption) {
             falseOption.checked = true;
         }
 
-        [trueOption, falseOption].forEach(option => {
+        [trueOption, falseOption].filter(Boolean).forEach(option => {
             option.addEventListener('change', (e) => {
                 this.responses[questionName] = {
                     question_id: question.id,
@@ -487,54 +568,45 @@ class QuestionnaireManager {
             });
         });
 
-        return element;
+        return template;
     }
 
     createTextQuestion(question, questionName) {
-        const template = document.getElementById('textQuestionTemplate');
-        const element = template.content.cloneNode(true);
+        const template = Utils.cloneTemplate('textQuestionTemplate');
+        if (!template) return null;
 
-        element.querySelector('.question-text').textContent = question.text;
+        Utils.setText(template, '.question-text', question.text);
 
-        const textarea = element.querySelector('.text-input');
-        textarea.name = questionName;
-        textarea.id = questionName;
-        textarea.required = question.is_required;
+        const textarea = template.querySelector('.text-input');
+        if (textarea) {
+            textarea.name = questionName;
+            textarea.id = questionName;
+            textarea.required = question.is_required;
 
-        // Restaurar resposta
-        if (this.responses[questionName]?.value) {
-            textarea.value = this.responses[questionName].value;
+            if (this.responses[questionName]?.value) {
+                textarea.value = this.responses[questionName].value;
+            }
+
+            textarea.addEventListener('input', (e) => {
+                this.responses[questionName] = {
+                    question_id: question.id,
+                    value: e.target.value,
+                    numeric_value: null
+                };
+            });
         }
 
-        textarea.addEventListener('input', (e) => {
-            this.responses[questionName] = {
-                question_id: question.id,
-                value: e.target.value,
-                numeric_value: null
-            };
-        });
-
-        return element;
+        return template;
     }
-
-    // ==================== NAVEGAÇÃO ====================
 
     updateNavigationButtons() {
         const prevBtn = document.getElementById('prevQuestionBtn');
         const nextBtn = document.getElementById('nextQuestionBtn');
         const submitBtn = document.getElementById('submitQuestionnaireBtn');
 
-        if (prevBtn) {
-            prevBtn.classList.toggle('hidden', this.currentQuestionIndex === 0);
-        }
-
-        if (nextBtn) {
-            nextBtn.classList.toggle('hidden', this.currentQuestionIndex >= this.currentQuestionnaire.questions.length - 1);
-        }
-
-        if (submitBtn) {
-            submitBtn.classList.toggle('hidden', this.currentQuestionIndex !== this.currentQuestionnaire.questions.length - 1);
-        }
+        if (prevBtn) prevBtn.classList.toggle('hidden', this.currentQuestionIndex === 0);
+        if (nextBtn) nextBtn.classList.toggle('hidden', this.currentQuestionIndex >= this.currentQuestionnaire.questions.length - 1);
+        if (submitBtn) submitBtn.classList.toggle('hidden', this.currentQuestionIndex !== this.currentQuestionnaire.questions.length - 1);
     }
 
     previousQuestion() {
@@ -547,9 +619,8 @@ class QuestionnaireManager {
         const currentQuestion = this.currentQuestionnaire.questions[this.currentQuestionIndex];
         const questionName = `question_${currentQuestion.id}`;
 
-        // Verificar se a pergunta obrigatória foi respondida
         if (currentQuestion.is_required && !this.responses[questionName]) {
-            this.showError('Por favor, responda a pergunta antes de continuar.');
+            Utils.toast.warning('Por favor, responda a pergunta antes de continuar.');
             return;
         }
 
@@ -558,67 +629,35 @@ class QuestionnaireManager {
         }
     }
 
-    // ==================== SUBMISSÃO ====================
-
-    showSubmitConfirmation() {
-        // Verificar se todas as perguntas obrigatórias foram respondidas
+    async showSubmitConfirmation() {
         const unansweredRequired = this.currentQuestionnaire.questions.some(question => {
             const questionName = `question_${question.id}`;
             return question.is_required && !this.responses[questionName];
         });
 
         if (unansweredRequired) {
-            this.showError('Por favor, responda todas as perguntas obrigatórias antes de finalizar.');
+            Utils.toast.warning('Por favor, responda todas as perguntas obrigatórias antes de finalizar.');
             return;
         }
 
-        // Usar SweetAlert2 se disponível
-        if (typeof Swal !== 'undefined') {
-            Swal.fire({
-                title: 'Confirmar Envio?',
-                text: 'Tem certeza que deseja enviar suas respostas?',
-                icon: 'question',
-                showCancelButton: true,
-                confirmButtonColor: '#10B981',
-                cancelButtonColor: '#6B7280',
-                confirmButtonText: 'Sim, enviar!',
-                cancelButtonText: 'Cancelar'
-            }).then((result) => {
-                if (result.isConfirmed) {
-                    this.submitQuestionnaire();
-                }
-            });
-        } else {
-            // Fallback para modal HTML
-            const modal = document.getElementById('responseModal');
-            if (modal) {
-                modal.classList.remove('hidden');
-            }
+        const confirmed = await Utils.confirm('Confirmar Envio?', 'Tem certeza que deseja enviar suas respostas?');
+        if (confirmed) {
+            this.submitQuestionnaire();
         }
     }
 
     setupConfirmationModal() {
         const modal = document.getElementById('responseModal');
-        const confirmBtn = document.getElementById('confirmSubmitBtn');
-        const cancelBtn = document.getElementById('cancelSubmitBtn');
         const closeBtn = modal?.querySelector('.close-modal');
 
-        if (confirmBtn) {
-            confirmBtn.addEventListener('click', () => this.submitQuestionnaire());
-        }
-
-        if (cancelBtn) {
-            cancelBtn.addEventListener('click', () => modal?.classList.add('hidden'));
-        }
-
         if (closeBtn) {
-            closeBtn.addEventListener('click', () => modal?.classList.add('hidden'));
+            closeBtn.addEventListener('click', () => Utils.hide(modal));
         }
 
         if (modal) {
             modal.addEventListener('click', (e) => {
                 if (e.target === modal) {
-                    modal.classList.add('hidden');
+                    Utils.hide(modal);
                 }
             });
         }
@@ -628,10 +667,8 @@ class QuestionnaireManager {
         try {
             this.showLoading();
 
-            // Fechar modal se estiver aberto
-            document.getElementById('responseModal')?.classList.add('hidden');
+            Utils.hide(document.getElementById('responseModal'));
 
-            // Preparar dados da resposta - usar location_id do questionário
             const responseData = {
                 questionnaire_id: this.currentQuestionnaire.id,
                 location_id: this.currentQuestionnaire.location_id,
@@ -641,77 +678,34 @@ class QuestionnaireManager {
                 answers: Object.values(this.responses)
             };
 
-            // Enviar para API
             await publicApi.submitResponse(responseData);
-
-            // Mostrar agradecimento
             this.showThankYou();
 
         } catch (error) {
             console.error('Erro ao enviar resposta:', error);
-            this.showError('Erro ao enviar suas respostas. Tente novamente.');
+            Utils.toast.error('Erro ao enviar suas respostas. Tente novamente.');
         } finally {
             this.hideLoading();
         }
     }
 
     showThankYou() {
-        // Ocultar questionário
-        document.querySelector('.questionnaire-container')?.classList.add('hidden');
+        Utils.hide(document.querySelector('.questionnaire-container'));
+        Utils.show(document.getElementById('thankyouContainer'));
 
-        // Mostrar agradecimento
-        const thankYouContainer = document.getElementById('thankyouContainer');
-        if (thankYouContainer) {
-            thankYouContainer.classList.remove('hidden');
-        }
+        Utils.toast.success('Suas respostas foram enviadas com sucesso!');
 
-        // Usar SweetAlert2 se disponível
-        if (typeof Swal !== 'undefined') {
-            Swal.fire({
-                title: 'Obrigado!',
-                text: 'Suas respostas foram enviadas com sucesso.',
-                icon: 'success',
-                confirmButtonColor: '#10B981',
-                timer: 5000,
-                timerProgressBar: true
-            }).then(() => {
-                window.location.reload();
-            });
-        } else {
-            // Recarregar após 5 segundos
-            setTimeout(() => {
-                window.location.reload();
-            }, 5000);
-        }
+        setTimeout(() => {
+            window.location.reload();
+        }, 5000);
     }
 
-    // ==================== UTILITÁRIOS ====================
-
     showLoading() {
-        const overlay = document.getElementById('loadingOverlay');
-        if (overlay) {
-            overlay.classList.remove('hidden');
-        }
+        Utils.show(document.getElementById('loadingOverlay'));
     }
 
     hideLoading() {
-        const overlay = document.getElementById('loadingOverlay');
-        if (overlay) {
-            overlay.classList.add('hidden');
-        }
-    }
-
-    showError(message) {
-        if (typeof Swal !== 'undefined') {
-            Swal.fire({
-                title: 'Erro',
-                text: message,
-                icon: 'error',
-                confirmButtonColor: '#EF4444'
-            });
-        } else {
-            alert(message);
-        }
+        Utils.hide(document.getElementById('loadingOverlay'));
     }
 }
 

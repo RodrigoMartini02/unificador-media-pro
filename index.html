@@ -628,13 +628,11 @@
                                         <div class="questionario-info">
                                             <h4 class="questionario-nome"></h4>
                                             <span class="questionario-total"></span>
+                                            <span class="status-badge"></span>
                                         </div>
                                         <div class="questionario-actions">
-                                            <button class="btn-icon btn-select" title="Selecionar">
-                                                <i class="fas fa-hand-pointer"></i>
-                                            </button>
-                                            <button class="btn-icon btn-edit" title="Editar">
-                                                <i class="fas fa-edit"></i>
+                                            <button class="btn-icon btn-toggle" title="Ativar/Desativar">
+                                                <i class="fas fa-power-off"></i>
                                             </button>
                                             <button class="btn-icon btn-delete" title="Excluir">
                                                 <i class="fas fa-trash"></i>
@@ -745,9 +743,70 @@
 
     </div>
 
-    <!-- ==================== MODAL: DETALHES DA RESPOSTA ==================== -->
-    <div class="modal hidden" id="modalDetalhesResposta">
+    <!-- ==================== TOAST CONTAINER ==================== -->
+    <div id="toastContainer" class="toast-container"></div>
+
+    <!-- ==================== MODAL: CONFIRMAÇÃO ==================== -->
+    <div class="modal" id="confirmModal">
         <div class="modal-overlay"></div>
+        <div class="modal-dialog modal-sm">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h2 class="modal-title confirm-title">Confirmar</h2>
+                </div>
+                <div class="modal-body">
+                    <p class="confirm-message"></p>
+                </div>
+                <div class="modal-footer">
+                    <button class="btn btn-secondary confirm-no">Cancelar</button>
+                    <button class="btn btn-danger confirm-yes">Confirmar</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ==================== MODAL: EDITAR PERGUNTA ==================== -->
+    <div class="modal" id="editPerguntaModal">
+        <div class="modal-overlay"></div>
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h2 class="modal-title">
+                        <i class="fas fa-edit"></i>
+                        Editar Pergunta
+                    </h2>
+                    <button class="modal-close" onclick="this.closest('.modal').classList.remove('active')">
+                        <i class="fas fa-times"></i>
+                    </button>
+                </div>
+                <div class="modal-body">
+                    <div class="form-group">
+                        <label for="editPerguntaTexto" class="form-label">Texto da Pergunta</label>
+                        <textarea id="editPerguntaTexto" class="form-textarea" rows="3" required></textarea>
+                    </div>
+                    <div class="form-group">
+                        <label for="editPerguntaTipo" class="form-label">Tipo de Resposta</label>
+                        <select id="editPerguntaTipo" class="form-select" required>
+                            <option value="scale">Escala</option>
+                            <option value="boolean">Sim/Não</option>
+                            <option value="text">Texto</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button class="btn btn-secondary" onclick="this.closest('.modal').classList.remove('active')">Cancelar</button>
+                    <button class="btn btn-primary" id="editPerguntaSave">
+                        <i class="fas fa-save"></i>
+                        Salvar
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ==================== MODAL: DETALHES DA RESPOSTA ==================== -->
+    <div class="modal" id="modalDetalhesResposta">
+        <div class="modal-overlay" onclick="this.closest('.modal').classList.remove('active')"></div>
         <div class="modal-dialog modal-lg">
             <div class="modal-content">
                 <div class="modal-header">
@@ -755,13 +814,12 @@
                         <i class="fas fa-clipboard-check"></i>
                         Detalhes da Resposta
                     </h2>
-                    <button class="modal-close" id="closeModalDetalhes">
+                    <button class="modal-close" onclick="this.closest('.modal').classList.remove('active')">
                         <i class="fas fa-times"></i>
                     </button>
                 </div>
 
                 <div class="modal-body">
-                    <!-- Informações do Respondente -->
                     <div class="respondente-info-card">
                         <div class="info-row">
                             <div class="info-item">
@@ -797,20 +855,17 @@
                         </div>
                     </div>
 
-                    <!-- Respostas -->
                     <div class="respostas-detalhes-container">
                         <h3 class="section-subtitle">
                             <i class="fas fa-list-alt"></i>
                             Respostas do Questionário
                         </h3>
-                        <div class="respostas-detalhes-list" id="modalRespostasList">
-                            <!-- Respostas via template -->
-                        </div>
+                        <div class="respostas-detalhes-list" id="modalRespostasList"></div>
                     </div>
                 </div>
 
                 <div class="modal-footer">
-                    <button class="btn btn-secondary" id="btnFecharModal">
+                    <button class="btn btn-secondary" onclick="this.closest('.modal').classList.remove('active')">
                         <i class="fas fa-times"></i>
                         Fechar
                     </button>
@@ -932,10 +987,7 @@
     <!-- ==================== SCRIPTS ==================== -->
     <!-- Chart.js para gráficos -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/3.9.1/chart.min.js"></script>
-    
-    <!-- SweetAlert2 para alertas customizados -->
-    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
-    
+
     <!-- Scripts da aplicação -->
     <script src="js/app.js"></script>
   

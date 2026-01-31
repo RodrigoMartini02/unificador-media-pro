@@ -1,11 +1,143 @@
 /**
- * Dashboard de Pesquisa de Satisfação - Refatorado
- * Conecta com API backend para gerenciamento de dados
+ * Dashboard de Pesquisa de Satisfação
+ * Código limpo com separação de responsabilidades
  */
 
 // ==================== CONFIGURAÇÃO ====================
 const API_URL = '/api';
 const IBGE_API_URL = 'https://servicodados.ibge.gov.br/api/v1/localidades';
+
+// ==================== UTILITÁRIOS ====================
+const Utils = {
+    // Toast notifications (canto superior direito)
+    toast: {
+        success: (msg) => Utils.showToast(msg, 'success'),
+        error: (msg) => Utils.showToast(msg, 'error'),
+        warning: (msg) => Utils.showToast(msg, 'warning'),
+        info: (msg) => Utils.showToast(msg, 'info')
+    },
+
+    showToast(message, type = 'info') {
+        const container = document.getElementById('toastContainer') || Utils.createToastContainer();
+        const toast = document.createElement('div');
+        toast.className = `toast toast-${type}`;
+
+        const icons = {
+            success: 'fa-check-circle',
+            error: 'fa-times-circle',
+            warning: 'fa-exclamation-triangle',
+            info: 'fa-info-circle'
+        };
+
+        const icon = document.createElement('i');
+        icon.className = `fas ${icons[type]}`;
+
+        const span = document.createElement('span');
+        span.textContent = message;
+
+        const closeBtn = document.createElement('button');
+        closeBtn.className = 'toast-close';
+        closeBtn.onclick = () => toast.remove();
+
+        const closeIcon = document.createElement('i');
+        closeIcon.className = 'fas fa-times';
+        closeBtn.appendChild(closeIcon);
+
+        toast.appendChild(icon);
+        toast.appendChild(span);
+        toast.appendChild(closeBtn);
+
+        container.appendChild(toast);
+
+        setTimeout(() => toast.remove(), 4000);
+        requestAnimationFrame(() => toast.classList.add('show'));
+    },
+
+    createToastContainer() {
+        const container = document.createElement('div');
+        container.id = 'toastContainer';
+        container.className = 'toast-container';
+        document.body.appendChild(container);
+        return container;
+    },
+
+    // Confirmar ação (usa modal nativo simplificado)
+    async confirm(title, message) {
+        return new Promise(resolve => {
+            const modal = document.getElementById('confirmModal');
+            const titleEl = modal.querySelector('.confirm-title');
+            const messageEl = modal.querySelector('.confirm-message');
+            const confirmBtn = modal.querySelector('.confirm-yes');
+            const cancelBtn = modal.querySelector('.confirm-no');
+
+            titleEl.textContent = title;
+            messageEl.textContent = message;
+            modal.classList.add('active');
+
+            const cleanup = () => {
+                modal.classList.remove('active');
+                confirmBtn.removeEventListener('click', onConfirm);
+                cancelBtn.removeEventListener('click', onCancel);
+            };
+
+            const onConfirm = () => { cleanup(); resolve(true); };
+            const onCancel = () => { cleanup(); resolve(false); };
+
+            confirmBtn.addEventListener('click', onConfirm);
+            cancelBtn.addEventListener('click', onCancel);
+        });
+    },
+
+    // Formatar data
+    formatDate(dateString) {
+        return new Date(dateString).toLocaleDateString('pt-BR');
+    },
+
+    // Obter elemento do template
+    cloneTemplate(templateId) {
+        const template = document.getElementById(templateId);
+        return template ? template.content.cloneNode(true) : null;
+    },
+
+    // Definir texto em elemento
+    setText(parent, selector, text) {
+        const el = parent.querySelector(selector);
+        if (el) el.textContent = text;
+    },
+
+    // Mostrar/ocultar elemento
+    show(el) { el?.classList.remove('hidden'); },
+    hide(el) { el?.classList.add('hidden'); },
+    toggle(el, show) { show ? Utils.show(el) : Utils.hide(el); },
+
+    // Popular select com opções
+    populateSelect(select, options, placeholder = 'Selecione...') {
+        if (!select) return;
+        select.textContent = '';
+
+        const defaultOption = document.createElement('option');
+        defaultOption.value = '';
+        defaultOption.textContent = placeholder;
+        select.appendChild(defaultOption);
+
+        options.forEach(opt => {
+            const option = document.createElement('option');
+            option.value = opt.value;
+            option.textContent = opt.label;
+            if (opt.data) {
+                Object.keys(opt.data).forEach(key => {
+                    option.dataset[key] = opt.data[key];
+                });
+            }
+            select.appendChild(option);
+        });
+    },
+
+    // Limpar container
+    clearContainer(container) {
+        if (container) container.textContent = '';
+    }
+};
 
 // ==================== API DO IBGE ====================
 const ibgeApi = {
@@ -14,7 +146,7 @@ const ibgeApi = {
             const response = await fetch(`${IBGE_API_URL}/estados?orderBy=nome`);
             return await response.json();
         } catch (error) {
-            console.error('Erro ao buscar estados do IBGE:', error);
+            console.error('Erro ao buscar estados:', error);
             return [];
         }
     },
@@ -24,7 +156,7 @@ const ibgeApi = {
             const response = await fetch(`${IBGE_API_URL}/estados/${ufId}/municipios?orderBy=nome`);
             return await response.json();
         } catch (error) {
-            console.error('Erro ao buscar municípios do IBGE:', error);
+            console.error('Erro ao buscar municípios:', error);
             return [];
         }
     }
@@ -50,9 +182,8 @@ const api = {
 
             const data = await response.json();
 
-            // Se a resposta não for ok, retornar null ou array vazio dependendo do endpoint
             if (!response.ok) {
-                console.warn(`API ${endpoint} returned ${response.status}:`, data);
+                console.warn(`API ${endpoint}:`, data);
                 return null;
             }
 
@@ -90,11 +221,7 @@ const api = {
 class DashboardManager {
     constructor() {
         this.charts = {};
-        this.filters = {
-            state: '',
-            questionnaire_id: '',
-            period: 'all'
-        };
+        this.filters = { state: '', questionnaire_id: '', period: 'all' };
     }
 
     async init() {
@@ -102,43 +229,33 @@ class DashboardManager {
             window.location.href = 'quest.html';
             return;
         }
-
-        this.setupEventListeners();
-        await this.loadDashboard();
+        this.bindEvents();
+        await this.load();
     }
 
-    setupEventListeners() {
-        // Filtros
+    bindEvents() {
         document.getElementById('stateSelect')?.addEventListener('change', (e) => {
             this.filters.state = e.target.value;
-            this.applyFilters();
+            this.load();
         });
 
         document.getElementById('questionarioFilterSelect')?.addEventListener('change', (e) => {
             this.filters.questionnaire_id = e.target.value;
-            this.applyFilters();
+            this.load();
         });
 
         document.querySelector('.period-selector')?.addEventListener('change', (e) => {
             this.filters.period = e.target.value;
-            this.applyFilters();
+            this.load();
         });
 
-        // Exportar
         document.getElementById('exportButton')?.addEventListener('click', () => this.exportCSV());
-
-        // Logout
         document.getElementById('logoutBtn')?.addEventListener('click', () => api.logout());
-
-        // Limpar dados
-        document.getElementById('limparDados')?.addEventListener('click', () => this.confirmClearData());
     }
 
-    async loadDashboard() {
+    async load() {
         try {
             this.showLoading();
-
-            // Carregar dados em paralelo
             const [overview, satisfaction, locations, questionnaires] = await Promise.all([
                 api.get('/analytics/overview'),
                 api.get('/analytics/satisfaction'),
@@ -150,10 +267,9 @@ class DashboardManager {
             this.populateFilters(locations || [], questionnaires || []);
             this.createCharts(satisfaction || []);
             await this.loadResponses();
-
         } catch (error) {
             console.error('Erro ao carregar dashboard:', error);
-            this.showError('Erro ao carregar dados. Verifique sua conexão.');
+            Utils.toast.error('Erro ao carregar dados');
         } finally {
             this.hideLoading();
         }
@@ -173,39 +289,27 @@ class DashboardManager {
     }
 
     populateFilters(locations, questionnaires) {
-        // Estados
         const stateSelect = document.getElementById('stateSelect');
         if (stateSelect && locations) {
-            const states = [...new Set(locations.map(l => l.state))].sort();
-            stateSelect.innerHTML = '<option value="">Todos os Estados</option>' +
-                states.map(s => `<option value="${s}">${s}</option>`).join('');
+            const states = [...new Set(locations.map(l => l.state))].filter(Boolean).sort();
+            Utils.populateSelect(stateSelect, states.map(s => ({ value: s, label: s })), 'Todos os Estados');
         }
 
-        // Questionários
         const questSelect = document.getElementById('questionarioFilterSelect');
         if (questSelect && questionnaires) {
-            questSelect.innerHTML = '<option value="">Todos os Questionários</option>' +
-                questionnaires.map(q => `<option value="${q.id}">${q.name}</option>`).join('');
+            Utils.populateSelect(questSelect, questionnaires.map(q => ({ value: q.id, label: q.name })), 'Todos os Questionários');
         }
     }
 
     createCharts(satisfactionData) {
-        this.createSatisfactionChart(satisfactionData);
-    }
-
-    createSatisfactionChart(data) {
         const ctx = document.getElementById('chartSatisfacao');
         if (!ctx || !window.Chart) return;
 
-        if (this.charts.satisfaction) {
-            this.charts.satisfaction.destroy();
-        }
+        if (this.charts.satisfaction) this.charts.satisfaction.destroy();
 
         const categories = ['Muito Insatisfeito', 'Insatisfeito', 'Neutro', 'Satisfeito', 'Muito Satisfeito'];
         const colors = ['#EF4444', '#F59E0B', '#6B7280', '#10B981', '#059669'];
-
-        // Garantir que data é um array
-        const safeData = Array.isArray(data) ? data : [];
+        const safeData = Array.isArray(satisfactionData) ? satisfactionData : [];
 
         const values = categories.map(cat => {
             const item = safeData.find(d => d.category === cat);
@@ -216,156 +320,103 @@ class DashboardManager {
             type: 'doughnut',
             data: {
                 labels: categories,
-                datasets: [{
-                    data: values,
-                    backgroundColor: colors,
-                    borderWidth: 2,
-                    borderColor: '#ffffff'
-                }]
+                datasets: [{ data: values, backgroundColor: colors, borderWidth: 2, borderColor: '#ffffff' }]
             },
             options: {
                 responsive: true,
                 maintainAspectRatio: false,
-                plugins: {
-                    legend: {
-                        position: 'bottom',
-                        labels: { padding: 20, usePointStyle: true }
-                    }
-                }
+                plugins: { legend: { position: 'bottom', labels: { padding: 20, usePointStyle: true } } }
             }
         });
     }
 
     async loadResponses() {
-        try {
-            const params = new URLSearchParams();
-            if (this.filters.state) params.append('state', this.filters.state);
-            if (this.filters.questionnaire_id) params.append('questionnaire_id', this.filters.questionnaire_id);
+        const params = new URLSearchParams();
+        if (this.filters.state) params.append('state', this.filters.state);
+        if (this.filters.questionnaire_id) params.append('questionnaire_id', this.filters.questionnaire_id);
 
-            const responses = await api.get(`/responses?${params}`);
-            this.renderResponses(responses || []);
-        } catch (error) {
-            console.error('Erro ao carregar respostas:', error);
-        }
+        const responses = await api.get(`/responses?${params}`);
+        this.renderResponses(responses || []);
     }
 
     renderResponses(responses) {
         const container = document.getElementById('respostasGrid');
         if (!container) return;
 
+        Utils.clearContainer(container);
+
         if (!responses.length) {
-            container.innerHTML = `
-                <div class="empty-state">
-                    <i class="fas fa-inbox"></i>
-                    <h3>Nenhuma resposta encontrada</h3>
-                    <p>Não há respostas para os filtros selecionados.</p>
-                </div>`;
+            const emptyState = document.createElement('div');
+            emptyState.className = 'empty-state';
+
+            const icon = document.createElement('i');
+            icon.className = 'fas fa-inbox';
+
+            const title = document.createElement('h3');
+            title.textContent = 'Nenhuma resposta encontrada';
+
+            emptyState.appendChild(icon);
+            emptyState.appendChild(title);
+            container.appendChild(emptyState);
             return;
         }
 
-        container.innerHTML = responses.map(r => `
-            <div class="response-card">
-                <div class="response-header">
-                    <span class="respondent-name">${r.is_anonymous ? 'Anônimo' : (r.respondent_name || 'Não informado')}</span>
-                    <span class="response-date">${new Date(r.submitted_at).toLocaleDateString('pt-BR')}</span>
-                </div>
-                <div class="response-info">
-                    <span><i class="fas fa-map-marker-alt"></i> ${r.municipality || ''}, ${r.state || ''}</span>
-                    <span><i class="fas fa-clipboard"></i> ${r.questionnaire_name || ''}</span>
-                </div>
-                <button class="btn btn-sm btn-secondary" onclick="dashboard.viewResponse(${r.id})">
-                    <i class="fas fa-eye"></i> Ver Detalhes
-                </button>
-            </div>
-        `).join('');
+        responses.forEach(r => {
+            const card = Utils.cloneTemplate('template-resposta-card');
+            if (!card) return;
+
+            Utils.setText(card, '.respondente-nome', r.is_anonymous ? 'Anônimo' : (r.respondent_name || 'Não informado'));
+            Utils.setText(card, '.respondente-cargo', r.respondent_position || '-');
+            Utils.setText(card, '.local-text', `${r.municipality || ''}, ${r.state || ''}`);
+            Utils.setText(card, '.data-text', Utils.formatDate(r.submitted_at));
+            Utils.setText(card, '.questionario-text', r.questionnaire_name || '');
+
+            card.querySelector('.btn-ver-detalhes')?.addEventListener('click', () => this.viewResponse(r.id));
+            container.appendChild(card);
+        });
     }
 
     async viewResponse(id) {
-        try {
-            const response = await api.get(`/responses/${id}`);
-            this.showResponseModal(response);
-        } catch (error) {
-            console.error('Erro ao carregar resposta:', error);
-        }
-    }
+        const response = await api.get(`/responses/${id}`);
+        if (!response) return;
 
-    showResponseModal(response) {
-        const modal = document.getElementById('modalRespostaDetalhes');
+        const modal = document.getElementById('modalDetalhesResposta');
         if (!modal) return;
 
-        document.getElementById('modalRespondenteNome').textContent =
-            response.is_anonymous ? 'Anônimo' : (response.respondent_name || 'Não informado');
-        document.getElementById('modalRespondenteCargo').textContent = response.respondent_position || '-';
-        document.getElementById('modalRespondenteLocal').textContent =
-            `${response.municipality || ''}, ${response.state || ''}`;
-        document.getElementById('modalRespostaData').textContent =
-            new Date(response.submitted_at).toLocaleDateString('pt-BR');
+        Utils.setText(modal, '#modalRespondenteNome', response.is_anonymous ? 'Anônimo' : (response.respondent_name || 'Não informado'));
+        Utils.setText(modal, '#modalRespondenteCargo', response.respondent_position || '-');
+        Utils.setText(modal, '#modalRespondenteLocal', `${response.municipality || ''}, ${response.state || ''}`);
+        Utils.setText(modal, '#modalRespostaData', Utils.formatDate(response.submitted_at));
 
         const list = document.getElementById('modalRespostasList');
-        list.innerHTML = (response.answers || []).map((a, i) => `
-            <div class="response-item">
-                <span class="question-number">${i + 1}.</span>
-                <span class="question-type">${a.question_type?.toUpperCase() || ''}</span>
-                <p class="question-text">${a.question_text || ''}</p>
-                <p class="answer-value">${this.formatAnswer(a)}</p>
-            </div>
-        `).join('');
+        Utils.clearContainer(list);
+        (response.answers || []).forEach((a, i) => {
+            const item = Utils.cloneTemplate('template-resposta-detalhe');
+            if (!item) return;
+            Utils.setText(item, '.pergunta-numero', `${i + 1}.`);
+            Utils.setText(item, '.pergunta-tipo-badge', a.question_type?.toUpperCase() || '');
+            Utils.setText(item, '.pergunta-texto', a.question_text || '');
+            Utils.setText(item, '.resposta-valor', this.formatAnswer(a));
+            list.appendChild(item);
+        });
 
         modal.classList.add('active');
     }
 
     formatAnswer(answer) {
-        if (answer.question_type === 'scale') {
-            return `<span class="rating">${answer.numeric_value}/10</span>`;
-        }
-        if (answer.question_type === 'boolean') {
-            const isYes = answer.value === 'true' || answer.value === '1';
-            return `<span class="boolean ${isYes ? 'yes' : 'no'}">${isYes ? 'Sim' : 'Não'}</span>`;
-        }
+        if (answer.question_type === 'scale') return `${answer.numeric_value}/10`;
+        if (answer.question_type === 'boolean') return answer.value === 'true' ? 'Sim' : 'Não';
         return answer.value || '-';
     }
 
-    async applyFilters() {
-        await this.loadDashboard();
-    }
-
-    async exportCSV() {
+    exportCSV() {
         const params = new URLSearchParams(this.filters);
         window.location.href = `${API_URL}/export/csv?${params}`;
     }
 
-    confirmClearData() {
-        Swal.fire({
-            title: 'Limpar Dados?',
-            text: 'Esta ação não pode ser desfeita!',
-            icon: 'warning',
-            showCancelButton: true,
-            confirmButtonColor: '#EF4444',
-            cancelButtonText: 'Cancelar',
-            confirmButtonText: 'Sim, limpar'
-        }).then(async (result) => {
-            if (result.isConfirmed) {
-                // Implementar limpeza via API se necessário
-                Swal.fire('Dados limpos!', '', 'success');
-            }
-        });
-    }
-
-    showLoading() {
-        document.getElementById('loadingOverlay')?.classList.remove('hidden');
-    }
-
-    hideLoading() {
-        document.getElementById('loadingOverlay')?.classList.add('hidden');
-    }
-
-    showError(message) {
-        Swal.fire('Erro', message, 'error');
-    }
-
-    closeModal() {
-        document.getElementById('modalRespostaDetalhes')?.classList.remove('active');
-    }
+    showLoading() { document.getElementById('loadingOverlay')?.classList.remove('hidden'); }
+    hideLoading() { document.getElementById('loadingOverlay')?.classList.add('hidden'); }
+    closeModal() { document.getElementById('modalDetalhesResposta')?.classList.remove('active'); }
 }
 
 // ==================== GERENCIADOR DE LOCAIS ====================
@@ -377,46 +428,37 @@ class LocalManager {
 
     async init() {
         await this.loadEstados();
-        this.setupEventListeners();
-        await this.loadLocaisCadastrados();
+        this.bindEvents();
+        await this.loadVinculos();
     }
 
     async loadEstados() {
         this.estados = await ibgeApi.getEstados();
-        this.populateEstadoSelect();
-    }
-
-    populateEstadoSelect() {
         const select = document.getElementById('selectEstado');
         if (!select) return;
 
-        select.innerHTML = '<option value="">Selecione o estado</option>' +
-            this.estados.map(e => `<option value="${e.id}" data-sigla="${e.sigla}" data-nome="${e.nome}">${e.nome}</option>`).join('');
+        Utils.populateSelect(
+            select,
+            this.estados.map(e => ({
+                value: e.id,
+                label: e.nome,
+                data: { sigla: e.sigla, nome: e.nome }
+            })),
+            'Selecione o estado'
+        );
     }
 
-    setupEventListeners() {
-        // Mudança de estado - carregar municípios
-        const estadoSelect = document.getElementById('selectEstado');
-        if (estadoSelect) {
-            estadoSelect.addEventListener('change', async (e) => {
-                const option = e.target.selectedOptions[0];
-                this.selectedUF = {
-                    id: e.target.value,
-                    sigla: option?.dataset.sigla,
-                    nome: option?.dataset.nome
-                };
-                await this.loadMunicipios(e.target.value);
-            });
-        }
+    bindEvents() {
+        document.getElementById('selectEstado')?.addEventListener('change', async (e) => {
+            const option = e.target.selectedOptions[0];
+            this.selectedUF = { id: e.target.value, sigla: option?.dataset.sigla, nome: option?.dataset.nome };
+            await this.loadMunicipios(e.target.value);
+        });
 
-        // Formulário de definir local
-        const form = document.getElementById('formDefinirLocal');
-        if (form) {
-            form.addEventListener('submit', async (e) => {
-                e.preventDefault();
-                await this.vincularLocal();
-            });
-        }
+        document.getElementById('formDefinirLocal')?.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            await this.vincularLocal();
+        });
     }
 
     async loadMunicipios(ufId) {
@@ -424,127 +466,93 @@ class LocalManager {
         if (!select) return;
 
         if (!ufId) {
-            select.innerHTML = '<option value="">Selecione o município</option>';
+            Utils.populateSelect(select, [], 'Selecione o município');
             select.disabled = true;
             return;
         }
 
-        select.innerHTML = '<option value="">Carregando...</option>';
+        Utils.populateSelect(select, [], 'Carregando...');
         select.disabled = true;
 
         const municipios = await ibgeApi.getMunicipios(ufId);
-
-        select.innerHTML = '<option value="">Selecione o município</option>' +
-            municipios.map(m => `<option value="${m.nome}">${m.nome}</option>`).join('');
+        Utils.populateSelect(
+            select,
+            municipios.map(m => ({ value: m.nome, label: m.nome })),
+            'Selecione o município'
+        );
         select.disabled = false;
     }
 
     async vincularLocal() {
-        const questionarioSelect = document.getElementById('selectQuestionario');
-        const municipioSelect = document.getElementById('selectMunicipio');
-
-        const questionarioId = questionarioSelect?.value;
-        const municipio = municipioSelect?.value;
+        const questionarioId = document.getElementById('selectQuestionario')?.value;
+        const municipio = document.getElementById('selectMunicipio')?.value;
         const estado = this.selectedUF?.nome;
 
         if (!questionarioId || !municipio || !estado) {
-            Swal.fire('Atenção', 'Preencha todos os campos', 'warning');
+            Utils.toast.warning('Preencha todos os campos');
             return;
         }
 
-        try {
-            // Vincular o local ao questionário via API
-            const result = await api.patch(`/questionnaires/${questionarioId}/location`, {
-                state: estado,
-                municipality: municipio
-            });
+        const result = await api.patch(`/questionnaires/${questionarioId}/location`, { state: estado, municipality: municipio });
 
-            if (result && !result.error) {
-                Swal.fire('Sucesso', 'Local vinculado ao questionário com sucesso!', 'success');
-                await this.loadLocaisCadastrados();
-
-                // Limpar formulário
-                document.getElementById('formDefinirLocal')?.reset();
-                document.getElementById('selectMunicipio').innerHTML = '<option value="">Selecione o município</option>';
-                document.getElementById('selectMunicipio').disabled = true;
-            } else {
-                throw new Error(result?.error || 'Erro ao vincular');
-            }
-        } catch (error) {
-            console.error('Erro ao vincular local:', error);
-            Swal.fire('Erro', 'Não foi possível vincular o local ao questionário', 'error');
+        if (result && !result.error) {
+            Utils.toast.success('Local vinculado com sucesso!');
+            await this.loadVinculos();
+            document.getElementById('formDefinirLocal')?.reset();
+            document.getElementById('selectMunicipio').disabled = true;
+        } else {
+            Utils.toast.error('Erro ao vincular local');
         }
     }
 
-    async loadLocaisCadastrados() {
-        try {
-            // Carregar questionários com seus locais vinculados
-            const questionnaires = await api.get('/questionnaires');
-            this.renderLocaisCadastrados(questionnaires || []);
-        } catch (error) {
-            console.error('Erro ao carregar vínculos:', error);
-        }
+    async loadVinculos() {
+        const questionnaires = await api.get('/questionnaires');
+        this.renderVinculos(questionnaires || []);
     }
 
-    renderLocaisCadastrados(questionnaires) {
+    renderVinculos(questionnaires) {
         const tbody = document.getElementById('corpoTabelaVinculos');
         const emptyMsg = document.getElementById('emptyVinculos');
-
         if (!tbody) return;
 
-        // Filtrar apenas questionários com local definido
         const comLocal = questionnaires.filter(q => q.state && q.municipality);
 
+        Utils.clearContainer(tbody);
+
         if (!comLocal.length) {
-            tbody.innerHTML = '';
-            if (emptyMsg) emptyMsg.style.display = 'block';
+            Utils.show(emptyMsg);
             return;
         }
 
-        if (emptyMsg) emptyMsg.style.display = 'none';
+        Utils.hide(emptyMsg);
 
-        tbody.innerHTML = comLocal.map(q => `
-            <tr class="vinculo-row">
-                <td class="vinculo-questionario">${q.name}</td>
-                <td class="vinculo-estado">${q.state}</td>
-                <td class="vinculo-municipio">${q.municipality}</td>
-                <td class="vinculo-status">
-                    <span class="status-badge ${q.is_active ? 'status-ativo' : 'status-inativo'}">${q.is_active ? 'Ativo' : 'Inativo'}</span>
-                </td>
-                <td class="vinculo-data">${new Date(q.created_at).toLocaleDateString('pt-BR')}</td>
-                <td class="vinculo-acoes">
-                    <button class="btn-icon btn-delete" title="Remover local" onclick="localManager.removerLocal(${q.id})">
-                        <i class="fas fa-unlink"></i>
-                    </button>
-                </td>
-            </tr>
-        `).join('');
+        comLocal.forEach(q => {
+            const row = Utils.cloneTemplate('templateVinculoRow');
+            if (!row) return;
+
+            Utils.setText(row, '.vinculo-questionario', q.name);
+            Utils.setText(row, '.vinculo-estado', q.state);
+            Utils.setText(row, '.vinculo-municipio', q.municipality);
+            Utils.setText(row, '.vinculo-data', Utils.formatDate(q.created_at));
+
+            const statusBadge = row.querySelector('.status-badge');
+            if (statusBadge) {
+                statusBadge.textContent = q.is_active ? 'Ativo' : 'Inativo';
+                statusBadge.className = `status-badge ${q.is_active ? 'status-ativo' : 'status-inativo'}`;
+            }
+
+            row.querySelector('.btn-delete')?.addEventListener('click', () => this.removerLocal(q.id));
+            tbody.appendChild(row);
+        });
     }
 
     async removerLocal(questionarioId) {
-        const result = await Swal.fire({
-            title: 'Remover local do questionário?',
-            text: 'O questionário ficará sem local definido',
-            icon: 'warning',
-            showCancelButton: true,
-            confirmButtonColor: '#EF4444',
-            cancelButtonText: 'Cancelar',
-            confirmButtonText: 'Sim, remover'
-        });
+        const confirmed = await Utils.confirm('Remover local?', 'O questionário ficará sem local definido');
+        if (!confirmed) return;
 
-        if (result.isConfirmed) {
-            try {
-                // Definir location_id como null
-                await api.patch(`/questionnaires/${questionarioId}/location`, {
-                    state: null,
-                    municipality: null
-                });
-                Swal.fire('Removido!', 'Local desvinculado do questionário', 'success');
-                await this.loadLocaisCadastrados();
-            } catch (error) {
-                Swal.fire('Erro', 'Não foi possível remover o local', 'error');
-            }
-        }
+        await api.patch(`/questionnaires/${questionarioId}/location`, { state: null, municipality: null });
+        Utils.toast.success('Local removido');
+        await this.loadVinculos();
     }
 }
 
@@ -552,201 +560,159 @@ class LocalManager {
 class QuestionnaireManager {
     constructor() {
         this.questionnaires = [];
-        this.selectedQuestionnaireId = null;
-        this.selectedQuestionnaire = null;
-        this.currentQuestions = [];
+        this.selectedId = null;
+        this.questions = [];
     }
 
     async init() {
-        this.setupEventListeners();
-        await this.loadQuestionnaires();
+        this.bindEvents();
+        await this.load();
     }
 
-    setupEventListeners() {
-        // Formulário de criar questionário
-        const formCriar = document.getElementById('formCriarQuestionario');
-        if (formCriar) {
-            formCriar.addEventListener('submit', async (e) => {
-                e.preventDefault();
-                await this.criarQuestionario();
-            });
-        }
+    bindEvents() {
+        document.getElementById('formCriarQuestionario')?.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            await this.criar();
+        });
 
-        // Formulário de adicionar pergunta
-        const formPergunta = document.getElementById('formAdicionarPergunta');
-        if (formPergunta) {
-            formPergunta.addEventListener('submit', async (e) => {
-                e.preventDefault();
-                await this.adicionarPergunta();
-            });
-        }
+        document.getElementById('formAdicionarPergunta')?.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            await this.adicionarPergunta();
+        });
 
-        // Tipo de pergunta - mostrar/esconder escala
-        const tipoPergunta = document.getElementById('tipoPergunta');
-        if (tipoPergunta) {
-            tipoPergunta.addEventListener('change', (e) => {
-                const grupoEscala = document.getElementById('grupoEscala');
-                if (grupoEscala) {
-                    grupoEscala.style.display = e.target.value === 'escala' ? 'block' : 'none';
-                }
-            });
-        }
+        document.getElementById('tipoPergunta')?.addEventListener('change', (e) => {
+            Utils.toggle(document.getElementById('grupoEscala'), e.target.value === 'escala');
+        });
     }
 
-    async loadQuestionnaires() {
-        try {
-            const data = await api.get('/questionnaires');
-            this.questionnaires = Array.isArray(data) ? data : [];
-            this.renderQuestionnairesList();
-            this.populateSelectQuestionario();
-        } catch (error) {
-            console.error('Erro ao carregar questionários:', error);
-        }
+    async load() {
+        const data = await api.get('/questionnaires');
+        this.questionnaires = Array.isArray(data) ? data : [];
+        this.render();
+        this.populateSelect();
     }
 
-    renderQuestionnairesList() {
+    render() {
         const container = document.getElementById('listaQuestionarios');
         const emptyMsg = document.getElementById('emptyQuestionarios');
-
         if (!container) return;
+
+        Utils.clearContainer(container);
 
         if (!this.questionnaires.length) {
-            container.innerHTML = '';
-            if (emptyMsg) emptyMsg.style.display = 'block';
+            Utils.show(emptyMsg);
             return;
         }
 
-        if (emptyMsg) emptyMsg.style.display = 'none';
+        Utils.hide(emptyMsg);
 
-        container.innerHTML = this.questionnaires.map(q => `
-            <div class="questionario-item ${this.selectedQuestionnaireId === q.id ? 'selected' : ''}" data-id="${q.id}">
-                <div class="questionario-info" onclick="questionnaireManager.selectQuestionario(${q.id})" style="cursor: pointer; flex: 1;">
-                    <h4 class="questionario-nome">${q.name}</h4>
-                    <span class="questionario-total">${q.question_count || 0} perguntas</span>
-                    <span class="status-badge ${q.is_active ? 'status-ativo' : 'status-inativo'}">
-                        ${q.is_active ? 'Ativo' : 'Inativo'}
-                    </span>
-                </div>
-                <div class="questionario-actions">
-                    <button class="btn-icon btn-toggle" title="${q.is_active ? 'Desativar' : 'Ativar'}" onclick="questionnaireManager.toggleActive(${q.id})">
-                        <i class="fas fa-power-off"></i>
-                    </button>
-                    <button class="btn-icon btn-delete" title="Excluir" onclick="questionnaireManager.deleteQuestionario(${q.id})">
-                        <i class="fas fa-trash"></i>
-                    </button>
-                </div>
-            </div>
-        `).join('');
+        this.questionnaires.forEach(q => {
+            const item = Utils.cloneTemplate('templateQuestionarioItem');
+            if (!item) return;
+
+            const div = item.querySelector('.questionario-item');
+            div.dataset.id = q.id;
+            if (this.selectedId === q.id) div.classList.add('selected');
+
+            Utils.setText(item, '.questionario-nome', q.name);
+            Utils.setText(item, '.questionario-total', `${q.question_count || 0} perguntas`);
+
+            const statusBadge = item.querySelector('.status-badge');
+            if (statusBadge) {
+                statusBadge.textContent = q.is_active ? 'Ativo' : 'Inativo';
+                statusBadge.className = `status-badge ${q.is_active ? 'status-ativo' : 'status-inativo'}`;
+            }
+
+            // Event listeners
+            item.querySelector('.questionario-info')?.addEventListener('click', () => this.selecionar(q.id));
+            item.querySelector('.btn-toggle')?.addEventListener('click', (e) => { e.stopPropagation(); this.toggleActive(q.id); });
+            item.querySelector('.btn-delete')?.addEventListener('click', (e) => { e.stopPropagation(); this.excluir(q.id); });
+
+            container.appendChild(item);
+        });
     }
 
-    populateSelectQuestionario() {
-        // Popular select na seção "Definir Local"
-        const selectDefinirLocal = document.getElementById('selectQuestionario');
-        if (selectDefinirLocal) {
-            selectDefinirLocal.innerHTML = '<option value="">Selecione o questionário</option>' +
-                this.questionnaires.map(q => `<option value="${q.id}">${q.name}</option>`).join('');
-        }
+    populateSelect() {
+        const select = document.getElementById('selectQuestionario');
+        if (!select) return;
+        Utils.populateSelect(
+            select,
+            this.questionnaires.map(q => ({ value: q.id, label: q.name })),
+            'Selecione o questionário'
+        );
     }
 
-    async criarQuestionario() {
-        const nomeInput = document.getElementById('nomeQuestionario');
-        const nome = nomeInput?.value?.trim();
+    async criar() {
+        const input = document.getElementById('nomeQuestionario');
+        const nome = input?.value?.trim();
 
         if (!nome) {
-            Swal.fire('Atenção', 'Digite o nome do questionário', 'warning');
+            Utils.toast.warning('Digite o nome do questionário');
             return;
         }
 
-        try {
-            const result = await api.post('/questionnaires', { name: nome });
-
-            if (result && !result.error) {
-                Swal.fire('Sucesso', 'Questionário criado com sucesso!', 'success');
-                nomeInput.value = '';
-                await this.loadQuestionnaires();
-                // Selecionar automaticamente o questionário criado
-                this.selectQuestionario(result.id);
-            } else {
-                throw new Error(result?.error || 'Erro ao criar');
-            }
-        } catch (error) {
-            console.error('Erro ao criar questionário:', error);
-            Swal.fire('Erro', 'Não foi possível criar o questionário', 'error');
+        const result = await api.post('/questionnaires', { name: nome });
+        if (result && !result.error) {
+            Utils.toast.success('Questionário criado!');
+            input.value = '';
+            await this.load();
+            this.selecionar(result.id);
+        } else {
+            Utils.toast.error('Erro ao criar questionário');
         }
     }
 
-    async selectQuestionario(id) {
-        try {
-            const data = await api.get(`/questionnaires/${id}`);
-            if (data) {
-                this.selectedQuestionnaireId = id;
-                this.selectedQuestionnaire = data;
+    async selecionar(id) {
+        const data = await api.get(`/questionnaires/${id}`);
+        if (!data) return;
 
-                // Mostrar cards de adicionar pergunta e lista de perguntas
-                const cardPergunta = document.getElementById('cardAdicionarPergunta');
-                const cardPerguntas = document.getElementById('cardPerguntas');
-                const badgeAtual = document.getElementById('badgeQuestionarioAtual');
-                const badgeNome = document.getElementById('badgeNomeQuestionario');
+        this.selectedId = id;
+        this.questions = data.questions || [];
 
-                if (cardPergunta) cardPergunta.style.display = 'block';
-                if (cardPerguntas) cardPerguntas.style.display = 'block';
-                if (badgeAtual) badgeAtual.textContent = data.name;
-                if (badgeNome) badgeNome.textContent = data.name;
+        Utils.show(document.getElementById('cardAdicionarPergunta'));
+        Utils.show(document.getElementById('cardPerguntas'));
+        Utils.setText(document, '#badgeQuestionarioAtual', data.name);
+        Utils.setText(document, '#badgeNomeQuestionario', data.name);
 
-                this.renderQuestionnairesList();
-                this.renderPerguntas(data.questions || []);
-            }
-        } catch (error) {
-            console.error('Erro ao selecionar questionário:', error);
-        }
+        this.render();
+        this.renderPerguntas();
     }
 
-    renderPerguntas(questions) {
+    renderPerguntas() {
         const container = document.getElementById('listaPerguntas');
         const emptyMsg = document.getElementById('emptyPerguntas');
-
         if (!container) return;
 
-        if (!questions.length) {
-            container.innerHTML = '';
-            if (emptyMsg) emptyMsg.style.display = 'block';
+        Utils.clearContainer(container);
+
+        if (!this.questions.length) {
+            Utils.show(emptyMsg);
             return;
         }
 
-        if (emptyMsg) emptyMsg.style.display = 'none';
+        Utils.hide(emptyMsg);
 
-        const tipoLabels = {
-            'scale': 'Escala',
-            'boolean': 'Sim/Não',
-            'text': 'Texto',
-            'multiple': 'Múltipla Escolha'
-        };
+        const tipoLabels = { scale: 'Escala', boolean: 'Sim/Não', text: 'Texto', multiple: 'Múltipla' };
 
-        // Guardar as perguntas para uso no edit
-        this.currentQuestions = questions;
+        this.questions.forEach((q, index) => {
+            const item = Utils.cloneTemplate('templatePerguntaItem');
+            if (!item) return;
 
-        container.innerHTML = questions.map((q, index) => `
-            <div class="pergunta-item" data-id="${q.id}">
-                <div class="pergunta-header">
-                    <span class="pergunta-numero">${index + 1}.</span>
-                    <span class="badge pergunta-tipo">${tipoLabels[q.type] || q.type}</span>
-                </div>
-                <div class="pergunta-texto">${q.text}</div>
-                <div class="pergunta-actions">
-                    <button class="btn-icon btn-edit" title="Editar" onclick="questionnaireManager.editPergunta(${q.id})">
-                        <i class="fas fa-edit"></i>
-                    </button>
-                    <button class="btn-icon btn-delete" title="Excluir" onclick="questionnaireManager.deletePergunta(${q.id})">
-                        <i class="fas fa-trash"></i>
-                    </button>
-                </div>
-            </div>
-        `).join('');
+            item.querySelector('.pergunta-item').dataset.id = q.id;
+            Utils.setText(item, '.pergunta-numero', `${index + 1}.`);
+            Utils.setText(item, '.pergunta-tipo', tipoLabels[q.type] || q.type);
+            Utils.setText(item, '.pergunta-texto', q.text);
+
+            item.querySelector('.btn-edit')?.addEventListener('click', () => this.editarPergunta(q));
+            item.querySelector('.btn-delete')?.addEventListener('click', () => this.excluirPergunta(q.id));
+
+            container.appendChild(item);
+        });
     }
 
     async adicionarPergunta() {
-        if (!this.selectedQuestionnaireId) {
-            Swal.fire('Atenção', 'Selecione um questionário primeiro', 'warning');
+        if (!this.selectedId) {
+            Utils.toast.warning('Selecione um questionário primeiro');
             return;
         }
 
@@ -758,176 +724,101 @@ class QuestionnaireManager {
         const tipo = tipoSelect?.value;
 
         if (!texto || !tipo) {
-            Swal.fire('Atenção', 'Preencha todos os campos', 'warning');
+            Utils.toast.warning('Preencha todos os campos');
             return;
         }
 
-        // Mapear tipos do frontend para o backend
-        const tipoMap = {
-            'escala': 'scale',
-            'simnao': 'boolean',
-            'texto': 'text'
-        };
+        const tipoMap = { escala: 'scale', simnao: 'boolean', texto: 'text' };
+        const options = tipo === 'escala' ? { max: parseInt(escalaSelect?.value) || 10 } : {};
 
-        const options = {};
-        if (tipo === 'escala') {
-            options.max = parseInt(escalaSelect?.value) || 10;
+        const result = await api.post(`/questionnaires/${this.selectedId}/questions`, {
+            text: texto,
+            type: tipoMap[tipo] || tipo,
+            options,
+            is_required: true
+        });
+
+        if (result && !result.error) {
+            Utils.toast.success('Pergunta adicionada!');
+            textoInput.value = '';
+            tipoSelect.value = '';
+            Utils.hide(document.getElementById('grupoEscala'));
+            await this.selecionar(this.selectedId);
+            await this.load();
+        } else {
+            Utils.toast.error('Erro ao adicionar pergunta');
         }
+    }
 
-        try {
-            const result = await api.post(`/questionnaires/${this.selectedQuestionnaireId}/questions`, {
-                text: texto,
-                type: tipoMap[tipo] || tipo,
-                options: options,
-                is_required: true
-            });
+    async editarPergunta(pergunta) {
+        const modal = document.getElementById('editPerguntaModal');
+        const textoInput = document.getElementById('editPerguntaTexto');
+        const tipoSelect = document.getElementById('editPerguntaTipo');
+        const saveBtn = document.getElementById('editPerguntaSave');
+
+        textoInput.value = pergunta.text;
+        tipoSelect.value = pergunta.type;
+        modal.classList.add('active');
+
+        const save = async () => {
+            const texto = textoInput.value.trim();
+            const tipo = tipoSelect.value;
+
+            if (!texto) {
+                Utils.toast.warning('Digite o texto da pergunta');
+                return;
+            }
+
+            const result = await api.put(
+                `/questionnaires/${this.selectedId}/questions/${pergunta.id}`,
+                { text: texto, type: tipo }
+            );
 
             if (result && !result.error) {
-                Swal.fire('Sucesso', 'Pergunta adicionada com sucesso!', 'success');
-                textoInput.value = '';
-                tipoSelect.value = '';
-                document.getElementById('grupoEscala').style.display = 'none';
-
-                // Recarregar questionário para atualizar lista de perguntas
-                await this.selectQuestionario(this.selectedQuestionnaireId);
-                await this.loadQuestionnaires();
+                Utils.toast.success('Pergunta atualizada!');
+                modal.classList.remove('active');
+                await this.selecionar(this.selectedId);
             } else {
-                throw new Error(result?.error || 'Erro ao adicionar');
+                Utils.toast.error('Erro ao atualizar pergunta');
             }
-        } catch (error) {
-            console.error('Erro ao adicionar pergunta:', error);
-            Swal.fire('Erro', 'Não foi possível adicionar a pergunta', 'error');
-        }
+
+            saveBtn.removeEventListener('click', save);
+        };
+
+        saveBtn.addEventListener('click', save);
     }
 
-    async deleteQuestionario(id) {
-        const result = await Swal.fire({
-            title: 'Excluir questionário?',
-            text: 'Esta ação não pode ser desfeita!',
-            icon: 'warning',
-            showCancelButton: true,
-            confirmButtonColor: '#EF4444',
-            cancelButtonText: 'Cancelar',
-            confirmButtonText: 'Sim, excluir'
-        });
+    async excluirPergunta(questionId) {
+        const confirmed = await Utils.confirm('Excluir pergunta?', 'Esta ação não pode ser desfeita');
+        if (!confirmed) return;
 
-        if (result.isConfirmed) {
-            try {
-                await api.delete(`/questionnaires/${id}`);
-                Swal.fire('Excluído!', 'Questionário excluído com sucesso', 'success');
-
-                // Se era o selecionado, limpar seleção
-                if (this.selectedQuestionnaireId === id) {
-                    this.selectedQuestionnaireId = null;
-                    this.selectedQuestionnaire = null;
-                    document.getElementById('cardAdicionarPergunta').style.display = 'none';
-                    document.getElementById('cardPerguntas').style.display = 'none';
-                }
-
-                await this.loadQuestionnaires();
-            } catch (error) {
-                console.error('Erro ao excluir:', error);
-                Swal.fire('Erro', 'Não foi possível excluir o questionário', 'error');
-            }
-        }
+        await api.delete(`/questionnaires/${this.selectedId}/questions/${questionId}`);
+        Utils.toast.success('Pergunta excluída');
+        await this.selecionar(this.selectedId);
+        await this.load();
     }
 
-    async deletePergunta(questionId) {
-        const result = await Swal.fire({
-            title: 'Excluir pergunta?',
-            text: 'Esta ação não pode ser desfeita!',
-            icon: 'warning',
-            showCancelButton: true,
-            confirmButtonColor: '#EF4444',
-            cancelButtonText: 'Cancelar',
-            confirmButtonText: 'Sim, excluir'
-        });
+    async excluir(id) {
+        const confirmed = await Utils.confirm('Excluir questionário?', 'Esta ação não pode ser desfeita');
+        if (!confirmed) return;
 
-        if (result.isConfirmed) {
-            try {
-                await api.delete(`/questionnaires/${this.selectedQuestionnaireId}/questions/${questionId}`);
-                Swal.fire('Excluída!', 'Pergunta excluída com sucesso', 'success');
-                await this.selectQuestionario(this.selectedQuestionnaireId);
-                await this.loadQuestionnaires();
-            } catch (error) {
-                console.error('Erro ao excluir pergunta:', error);
-                Swal.fire('Erro', 'Não foi possível excluir a pergunta', 'error');
-            }
-        }
-    }
+        await api.delete(`/questionnaires/${id}`);
+        Utils.toast.success('Questionário excluído');
 
-    async editPergunta(questionId) {
-        // Buscar a pergunta atual
-        const pergunta = this.currentQuestions?.find(q => q.id === questionId);
-        if (!pergunta) {
-            Swal.fire('Erro', 'Pergunta não encontrada', 'error');
-            return;
+        if (this.selectedId === id) {
+            this.selectedId = null;
+            Utils.hide(document.getElementById('cardAdicionarPergunta'));
+            Utils.hide(document.getElementById('cardPerguntas'));
         }
 
-        const textoAtual = pergunta.text;
-        const tipoAtual = pergunta.type;
-
-        const { value: formValues } = await Swal.fire({
-            title: 'Editar Pergunta',
-            html: `
-                <div style="text-align: left;">
-                    <label style="display: block; margin-bottom: 5px; font-weight: 500;">Texto da Pergunta</label>
-                    <textarea id="swal-texto" class="swal2-textarea" style="width: 100%; min-height: 80px;">${textoAtual}</textarea>
-                    <label style="display: block; margin-bottom: 5px; margin-top: 15px; font-weight: 500;">Tipo de Resposta</label>
-                    <select id="swal-tipo" class="swal2-select" style="width: 100%;">
-                        <option value="scale" ${tipoAtual === 'scale' ? 'selected' : ''}>Escala</option>
-                        <option value="boolean" ${tipoAtual === 'boolean' ? 'selected' : ''}>Sim/Não</option>
-                        <option value="text" ${tipoAtual === 'text' ? 'selected' : ''}>Texto</option>
-                    </select>
-                </div>
-            `,
-            focusConfirm: false,
-            showCancelButton: true,
-            confirmButtonText: 'Salvar',
-            cancelButtonText: 'Cancelar',
-            confirmButtonColor: '#3b82f6',
-            preConfirm: () => {
-                const texto = document.getElementById('swal-texto').value.trim();
-                const tipo = document.getElementById('swal-tipo').value;
-                if (!texto) {
-                    Swal.showValidationMessage('Digite o texto da pergunta');
-                    return false;
-                }
-                return { texto, tipo };
-            }
-        });
-
-        if (formValues) {
-            try {
-                const result = await api.put(
-                    `/questionnaires/${this.selectedQuestionnaireId}/questions/${questionId}`,
-                    { text: formValues.texto, type: formValues.tipo }
-                );
-
-                if (result && !result.error) {
-                    Swal.fire('Sucesso', 'Pergunta atualizada com sucesso!', 'success');
-                    await this.selectQuestionario(this.selectedQuestionnaireId);
-                } else {
-                    throw new Error(result?.error || 'Erro ao atualizar');
-                }
-            } catch (error) {
-                console.error('Erro ao editar pergunta:', error);
-                Swal.fire('Erro', 'Não foi possível atualizar a pergunta', 'error');
-            }
-        }
+        await this.load();
     }
 
     async toggleActive(id) {
-        try {
-            const result = await api.patch(`/questionnaires/${id}/toggle`);
-            if (result) {
-                const status = result.is_active ? 'ativado' : 'desativado';
-                Swal.fire('Sucesso', `Questionário ${status} com sucesso!`, 'success');
-                await this.loadQuestionnaires();
-            }
-        } catch (error) {
-            console.error('Erro ao alterar status:', error);
-            Swal.fire('Erro', 'Não foi possível alterar o status', 'error');
+        const result = await api.patch(`/questionnaires/${id}/toggle`);
+        if (result) {
+            Utils.toast.success(`Questionário ${result.is_active ? 'ativado' : 'desativado'}`);
+            await this.load();
         }
     }
 }
@@ -946,18 +837,15 @@ class NavigationManager {
             });
         });
 
-        // Mobile menu
         document.getElementById('mobileMenuToggle')?.addEventListener('click', () => {
             document.getElementById('sidebar')?.classList.toggle('mobile-open');
         });
     }
 
     navigateTo(section) {
-        // Atualizar navegação
         document.querySelectorAll('.nav-item').forEach(item => item.classList.remove('active'));
         document.querySelector(`[data-section="${section}"]`)?.closest('.nav-item')?.classList.add('active');
 
-        // Mostrar seção
         document.querySelectorAll('.content-section').forEach(s => s.classList.remove('active'));
         document.getElementById(`section-${section}`)?.classList.add('active');
 
@@ -966,28 +854,18 @@ class NavigationManager {
 }
 
 // ==================== INICIALIZAÇÃO ====================
-let dashboard;
-let navigation;
-let localManager;
-let questionnaireManager;
+let dashboard, navigation, localManager, questionnaireManager;
 
 document.addEventListener('DOMContentLoaded', async () => {
-    // Verificar dependências
-    if (typeof Chart === 'undefined') {
-        console.warn('Chart.js não carregado');
-    }
-
     navigation = new NavigationManager();
     navigation.init();
 
     dashboard = new DashboardManager();
     await dashboard.init();
 
-    // Inicializar gerenciador de questionários
     questionnaireManager = new QuestionnaireManager();
     await questionnaireManager.init();
 
-    // Inicializar gerenciador de locais
     localManager = new LocalManager();
     await localManager.init();
 
@@ -997,19 +875,19 @@ document.addEventListener('DOMContentLoaded', async () => {
     window.localManager = localManager;
     window.questionnaireManager = questionnaireManager;
 
+    // Fechar modais com ESC
+    document.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape') {
+            document.querySelectorAll('.modal.active').forEach(m => m.classList.remove('active'));
+        }
+    });
+
+    // Fechar modais clicando fora
+    document.addEventListener('click', (e) => {
+        if (e.target.classList.contains('modal')) {
+            e.target.classList.remove('active');
+        }
+    });
+
     console.log('Dashboard carregado!');
-});
-
-// Fechar modal com ESC
-document.addEventListener('keydown', (e) => {
-    if (e.key === 'Escape') {
-        document.querySelector('.modal.active')?.classList.remove('active');
-    }
-});
-
-// Fechar modal clicando fora
-document.addEventListener('click', (e) => {
-    if (e.target.classList.contains('modal')) {
-        e.target.classList.remove('active');
-    }
 });

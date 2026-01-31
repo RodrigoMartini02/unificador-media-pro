@@ -122,10 +122,14 @@
                             <h3 class="question-text"></h3>
                             <span class="required-mark">*</span>
                             <div class="boolean-container">
-                                <input type="radio" class="true-option" name="" value="true" required>
-                                <label class="true-label">Sim</label>
-                                <input type="radio" class="false-option" name="" value="false" required>
-                                <label class="false-label">Não</label>
+                                <div class="boolean-option">
+                                    <input type="radio" class="true-option" name="" value="true" required>
+                                    <label class="true-label">Sim</label>
+                                </div>
+                                <div class="boolean-option">
+                                    <input type="radio" class="false-option" name="" value="false" required>
+                                    <label class="false-label">Não</label>
+                                </div>
                             </div>
                         </div>
                     </div>
@@ -159,8 +163,34 @@
 
                 <!-- Template para botões de escala -->
                 <template id="scaleButtonTemplate">
-                    <input type="radio" class="scale-input" name="" value="" required>
-                    <label class="scale-label"></label>
+                    <div class="scale-option">
+                        <input type="radio" class="scale-input" name="" value="" required>
+                        <label class="scale-label"></label>
+                    </div>
+                </template>
+
+                <!-- Template para labels de escala -->
+                <template id="scaleLabelsTemplate">
+                    <div class="scale-labels">
+                        <span>Muito Insatisfeito</span>
+                        <span>Muito Satisfeito</span>
+                    </div>
+                </template>
+
+                <!-- Template para ponto de progresso -->
+                <template id="progressDotTemplate">
+                    <div class="progress-dot"></div>
+                </template>
+
+                <!-- Template para mensagem de indisponível -->
+                <template id="noQuestionnaireTemplate">
+                    <div class="questionnaire-header">
+                        <h1>Questionário Indisponível</h1>
+                    </div>
+                    <div class="no-template-message">
+                        <h3><i class="fas fa-exclamation-triangle"></i></h3>
+                        <p class="error-message-text"></p>
+                    </div>
                 </template>
 
                 <!-- Mensagem quando não há template -->
@@ -325,8 +355,8 @@
         </div>
     </div>
 
-    <!-- SweetAlert2 -->
-    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <!-- Toast Container -->
+    <div id="toastContainer" class="toast-container"></div>
 
     <!-- Scripts da aplicação -->
     <script src="jsquest/login.js"></script>
