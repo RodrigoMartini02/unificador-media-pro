@@ -482,6 +482,35 @@ body {
     margin-top: 0.25rem;
 }
 
+.form-checkbox-label {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    cursor: pointer;
+    padding: 0.75rem;
+    border: 1px solid var(--border-color);
+    border-radius: var(--border-radius);
+    transition: var(--transition);
+    background: var(--bg-primary);
+}
+
+.form-checkbox-label:hover {
+    border-color: var(--primary-color);
+    background: var(--bg-secondary);
+}
+
+.form-checkbox-label input[type="checkbox"] {
+    width: 1.25rem;
+    height: 1.25rem;
+    accent-color: var(--primary-color);
+    cursor: pointer;
+}
+
+.form-checkbox-label .checkbox-text {
+    font-size: 0.875rem;
+    color: var(--text-primary);
+}
+
 /* ==================== BOTÕES ==================== */
 
 .btn {

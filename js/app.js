@@ -1825,9 +1825,11 @@ class QuestionnaireManager {
         const textoInput = document.getElementById('textoPergunta');
         const tipoSelect = document.getElementById('tipoPergunta');
         const escalaSelect = document.getElementById('valorEscala');
+        const obrigatoriaCheckbox = document.getElementById('perguntaObrigatoria');
 
         const texto = textoInput?.value?.trim();
         const tipo = tipoSelect?.value;
+        const isRequired = obrigatoriaCheckbox?.checked ?? true;
 
         if (!texto || !tipo) {
             Utils.toast.warning('Preencha todos os campos');
@@ -1841,13 +1843,14 @@ class QuestionnaireManager {
             text: texto,
             type: tipoMap[tipo] || tipo,
             options,
-            is_required: true
+            is_required: isRequired
         });
 
         if (result && !result.error) {
             Utils.toast.success('Pergunta adicionada!');
             textoInput.value = '';
             tipoSelect.value = '';
+            if (obrigatoriaCheckbox) obrigatoriaCheckbox.checked = true;
             Utils.hide(document.getElementById('grupoEscala'));
             Utils.closeModal('modalAdicionarPergunta');
             await this.selecionar(this.selectedId);

@@ -63,11 +63,17 @@ const Utils = {
             const confirmBtn = document.getElementById('confirmSubmitBtn');
             const cancelBtn = document.getElementById('cancelSubmitBtn');
 
+            if (!modal || !confirmBtn || !cancelBtn) {
+                console.error('Modal elements not found');
+                resolve(false);
+                return;
+            }
+
             if (modalText) modalText.textContent = message;
-            modal.classList.remove('hidden');
+            modal.classList.add('show');
 
             const cleanup = () => {
-                modal.classList.add('hidden');
+                modal.classList.remove('show');
                 confirmBtn.removeEventListener('click', onConfirm);
                 cancelBtn.removeEventListener('click', onCancel);
             };
@@ -682,13 +688,13 @@ class QuestionnaireManager {
         const closeBtn = modal?.querySelector('.close-modal');
 
         if (closeBtn) {
-            closeBtn.addEventListener('click', () => Utils.hide(modal));
+            closeBtn.addEventListener('click', () => modal.classList.remove('show'));
         }
 
         if (modal) {
             modal.addEventListener('click', (e) => {
                 if (e.target === modal) {
-                    Utils.hide(modal);
+                    modal.classList.remove('show');
                 }
             });
         }
@@ -698,7 +704,7 @@ class QuestionnaireManager {
         try {
             this.showLoading();
 
-            Utils.hide(document.getElementById('responseModal'));
+            document.getElementById('responseModal')?.classList.remove('show');
 
             const responseData = {
                 questionnaire_id: this.currentQuestionnaire.id,
