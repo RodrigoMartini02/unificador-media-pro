@@ -726,9 +726,14 @@ class QuestionnaireManager {
 
         Utils.toast.success('Suas respostas foram enviadas com sucesso!');
 
-        setTimeout(() => {
-            window.location.reload();
-        }, 5000);
+        // Atualizar mensagem do container de agradecimento
+        const thankyouContainer = document.getElementById('thankyouContainer');
+        if (thankyouContainer) {
+            const messageEl = thankyouContainer.querySelector('.thankyou-message');
+            if (messageEl) {
+                messageEl.textContent = 'Você já pode fechar esta aba.';
+            }
+        }
     }
 
     showLoading() {

@@ -1218,6 +1218,188 @@ class SuggestionsManager {
     }
 }
 
+// ==================== GERENCIADOR DE RESPOSTAS ====================
+class ResponsesManager {
+    constructor() {
+        this.filters = { questionnaire_id: '', state: '' };
+        this.responses = [];
+    }
+
+    async init() {
+        this.bindEvents();
+        await this.load();
+        await this.populateFilters();
+    }
+
+    bindEvents() {
+        document.getElementById('filtroQuestionarioRespostas')?.addEventListener('change', (e) => {
+            this.filters.questionnaire_id = e.target.value;
+            this.load();
+        });
+
+        document.getElementById('filtroEstadoRespostas')?.addEventListener('change', (e) => {
+            this.filters.state = e.target.value;
+            this.load();
+        });
+
+        document.getElementById('sortOrderRespostas')?.addEventListener('change', () => {
+            this.load();
+        });
+    }
+
+    async load() {
+        try {
+            Utils.show(document.getElementById('loadingRespostas'));
+            Utils.hide(document.getElementById('emptyRespostas'));
+
+            const params = new URLSearchParams();
+            if (this.filters.questionnaire_id) {
+                params.append('questionnaire_id', this.filters.questionnaire_id);
+            }
+            if (this.filters.state) {
+                params.append('state', this.filters.state);
+            }
+
+            const result = await api.get(`/responses?${params}`);
+            this.responses = result?.data || result || [];
+
+            // Atualizar contador
+            const countEl = document.getElementById('totalRespostasCount');
+            if (countEl) {
+                const total = result?.pagination?.total || this.responses.length;
+                countEl.textContent = `${total} respostas`;
+            }
+
+            this.render();
+        } catch (error) {
+            console.error('Erro ao carregar respostas:', error);
+            Utils.toast.error('Erro ao carregar respostas');
+        } finally {
+            Utils.hide(document.getElementById('loadingRespostas'));
+        }
+    }
+
+    render() {
+        const container = document.getElementById('respostasGrid');
+        if (!container) return;
+
+        Utils.clearContainer(container);
+
+        // Aplicar ordenação
+        const sortOrder = document.getElementById('sortOrderRespostas')?.value || 'newest';
+        const sortedResponses = [...this.responses].sort((a, b) => {
+            const dateA = new Date(a.submitted_at);
+            const dateB = new Date(b.submitted_at);
+            return sortOrder === 'newest' ? dateB - dateA : dateA - dateB;
+        });
+
+        if (!sortedResponses.length) {
+            Utils.show(document.getElementById('emptyRespostas'));
+            return;
+        }
+
+        Utils.hide(document.getElementById('emptyRespostas'));
+
+        sortedResponses.forEach(r => {
+            const card = Utils.cloneTemplate('template-resposta-card');
+            if (!card) return;
+
+            const nome = r.is_anonymous ? 'Anônimo' : (r.respondent_name || 'Não informado');
+            const cargo = r.respondent_position || '-';
+            const local = r.municipality && r.state ? `${r.municipality}, ${r.state}` : '-';
+
+            Utils.setText(card, '.respondente-nome', nome);
+            Utils.setText(card, '.respondente-cargo', cargo);
+            Utils.setText(card, '.local-text', local);
+            Utils.setText(card, '.data-text', Utils.formatDate(r.submitted_at));
+            Utils.setText(card, '.questionario-text', r.questionnaire_name || 'Questionário');
+
+            // Evento para ver detalhes
+            card.querySelector('.btn-ver-detalhes')?.addEventListener('click', () => {
+                this.showDetails(r.id);
+            });
+
+            container.appendChild(card);
+        });
+    }
+
+    async showDetails(responseId) {
+        try {
+            const response = await api.get(`/responses/${responseId}`);
+            if (!response) {
+                Utils.toast.error('Erro ao carregar detalhes');
+                return;
+            }
+
+            // Preencher modal
+            const nome = response.is_anonymous ? 'Anônimo' : (response.respondent_name || 'Não informado');
+            document.getElementById('modalRespondenteNome').textContent = nome;
+            document.getElementById('modalRespondenteCargo').textContent = response.respondent_position || '-';
+
+            const local = response.municipality && response.state ? `${response.municipality}, ${response.state}` : '-';
+            document.getElementById('modalRespostaLocal').textContent = local;
+            document.getElementById('modalRespostaData').textContent = Utils.formatDate(response.submitted_at);
+
+            // Renderizar respostas
+            const listContainer = document.getElementById('modalRespostasList');
+            Utils.clearContainer(listContainer);
+
+            const tipoLabels = { scale: 'Escala', boolean: 'Sim/Não', text: 'Texto', multiple: 'Múltipla' };
+            const answers = response.answers || [];
+
+            answers.forEach((answer, index) => {
+                const item = Utils.cloneTemplate('template-resposta-detalhe');
+                if (!item) return;
+
+                Utils.setText(item, '.pergunta-numero', `${index + 1}.`);
+                Utils.setText(item, '.pergunta-tipo-badge', tipoLabels[answer.type] || answer.type);
+                Utils.setText(item, '.pergunta-texto', answer.question_text || '');
+
+                // Formatar valor da resposta
+                let valorFormatado = answer.value || '-';
+                if (answer.type === 'boolean') {
+                    valorFormatado = answer.value === 'true' ? 'Sim' : 'Não';
+                } else if (answer.type === 'scale' && answer.numeric_value) {
+                    valorFormatado = `${answer.numeric_value}/10`;
+                }
+
+                Utils.setText(item, '.resposta-valor', valorFormatado);
+                listContainer.appendChild(item);
+            });
+
+            Utils.openModal('modalDetalhesResposta');
+        } catch (error) {
+            console.error('Erro ao carregar detalhes:', error);
+            Utils.toast.error('Erro ao carregar detalhes da resposta');
+        }
+    }
+
+    async populateFilters() {
+        // Populate questionário filter
+        const questionnaires = await api.get('/questionnaires');
+        const questSelect = document.getElementById('filtroQuestionarioRespostas');
+        if (questSelect && questionnaires) {
+            Utils.populateSelect(
+                questSelect,
+                questionnaires.map(q => ({ value: q.id, label: q.name })),
+                'Todos os Questionários'
+            );
+        }
+
+        // Populate estado filter
+        const locations = await api.get('/locations');
+        const stateSelect = document.getElementById('filtroEstadoRespostas');
+        if (stateSelect && locations) {
+            const states = [...new Set(locations.map(l => l.state))].filter(Boolean).sort();
+            Utils.populateSelect(
+                stateSelect,
+                states.map(s => ({ value: s, label: s })),
+                'Todos os Estados'
+            );
+        }
+    }
+}
+
 // ==================== GERENCIADOR DE LOCAIS ====================
 class LocalManager {
     constructor() {
@@ -1786,7 +1968,7 @@ class NavigationManager {
 }
 
 // ==================== INICIALIZAÇÃO ====================
-let dashboard, navigation, localManager, questionnaireManager, suggestionsManager;
+let dashboard, navigation, localManager, questionnaireManager, suggestionsManager, responsesManager;
 
 document.addEventListener('DOMContentLoaded', async () => {
     navigation = new NavigationManager();
@@ -1804,6 +1986,9 @@ document.addEventListener('DOMContentLoaded', async () => {
     suggestionsManager = new SuggestionsManager();
     await suggestionsManager.init();
 
+    responsesManager = new ResponsesManager();
+    await responsesManager.init();
+
     // Popular filtro de questionários nas sugestões
     const questionnaires = await api.get('/questionnaires');
     if (questionnaires) {
@@ -1816,6 +2001,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     window.localManager = localManager;
     window.questionnaireManager = questionnaireManager;
     window.suggestionsManager = suggestionsManager;
+    window.responsesManager = responsesManager;
 
     // Fechar modais com ESC (suporta hidden e active)
     document.addEventListener('keydown', (e) => {

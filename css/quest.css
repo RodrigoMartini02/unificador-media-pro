@@ -427,6 +427,35 @@ body {
     margin-bottom: 1rem;
 }
 
+.thankyou-icon {
+    font-size: 4rem;
+    color: var(--success);
+    margin-bottom: 1.5rem;
+}
+
+.thankyou-icon i {
+    animation: scaleIn 0.5s ease-out;
+}
+
+@keyframes scaleIn {
+    0% {
+        transform: scale(0);
+        opacity: 0;
+    }
+    100% {
+        transform: scale(1);
+        opacity: 1;
+    }
+}
+
+.thankyou-message {
+    margin-top: 1.5rem;
+    padding: 1rem;
+    background: var(--gray-100);
+    border-radius: var(--radius-sm);
+    color: var(--gray-800);
+}
+
 /* Modais */
 .modal {
     position: fixed;
